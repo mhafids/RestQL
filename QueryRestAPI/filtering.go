@@ -1,0 +1,227 @@
+package queryrestapi
+
+import (
+	"errors"
+	"strings"
+)
+
+func (query *QueryJSON) filterDB(filter IFilter, model interface{}) (filterProcessed IFilterProcessed, err error) {
+	var userFields = getFields(model)
+	fields, values, err := operatorComparison(filter, userFields)
+	if err != nil {
+		return
+	}
+	filterProcessed = IFilterProcessed{
+		Field:  fields,
+		Values: values,
+	}
+	return
+}
+
+func operatorComparison(filter IFilter, model []string) (fields string, values []interface{}, err error) {
+
+	switch strings.ToLower(filter.Operator) {
+	case EQ:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " = ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case NE:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " <> ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case LIKE:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, "%"+filter.Value.(string)+"%")
+			fields += filter.Field + " LIKE ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case ILIKE:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, "%"+filter.Value.(string)+"%")
+			fields += "LOWER(" + filter.Field + ") LIKE LOWER(?)"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case GT:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " > ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case GTE:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " >= ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case LT:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " < ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case LTE:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " <= ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case NIN:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " NOT IN ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case IN:
+		if stringInSlice(model, filter.Field) {
+			values = append(values, filter.Value)
+			fields += filter.Field + " IN ?"
+		} else {
+			err = errors.New("\"" + filter.Field + "\" Not Found in model")
+			return
+		}
+
+	case NOT:
+		if len(filter.Items) > 0 {
+			var fieldsNAND []string
+			for _, item := range filter.Items {
+				field, value, errl := operatorComparison(item, model)
+
+				if errl != nil {
+					err = errl
+					break
+				}
+				if field == "" {
+					continue
+				}
+				fieldsNAND = append(fieldsNAND, field)
+				values = append(values, value...)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if len(fieldsNAND) > 0 {
+				fields = "( NOT " + strings.Join(fieldsNAND, " AND NOT ") + ")"
+			}
+		}
+
+	case NOR:
+		if len(filter.Items) > 0 {
+			var fieldsNOR []string
+			for _, item := range filter.Items {
+				field, value, errl := operatorComparison(item, model)
+
+				if errl != nil {
+					err = errl
+					break
+				}
+				if field == "" {
+					continue
+				}
+				fieldsNOR = append(fieldsNOR, field)
+				values = append(values, value...)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if len(fieldsNOR) > 0 {
+				fields = "( NOT " + strings.Join(fieldsNOR, " OR NOT ") + ")"
+			}
+		}
+
+	case AND:
+		if len(filter.Items) > 0 {
+			var fieldsAND []string
+			for _, item := range filter.Items {
+				field, value, errl := operatorComparison(item, model)
+
+				if errl != nil {
+					err = errl
+					break
+				}
+				if field == "" {
+					continue
+				}
+				fieldsAND = append(fieldsAND, field)
+				values = append(values, value...)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if len(fieldsAND) > 0 {
+				fields = "(" + strings.Join(fieldsAND, " AND ") + ")"
+			}
+		}
+
+	case OR:
+		if len(filter.Items) > 0 {
+			var fieldsOR []string
+			for _, item := range filter.Items {
+				field, value, errl := operatorComparison(item, model)
+
+				if errl != nil {
+					err = errl
+					break
+				}
+				if field == "" {
+					continue
+				}
+				fieldsOR = append(fieldsOR, field)
+				values = append(values, value...)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if len(fieldsOR) > 0 {
+				fields = "(" + strings.Join(fieldsOR, " OR ") + ")"
+			}
+		}
+
+	default:
+		err = errors.New("\"" + filter.Operator + "\" not available")
+		if err != nil {
+			return
+		}
+	}
+
+	// fmt.Println(strings.ToLower(filter.Operator), fields)
+	return
+}
