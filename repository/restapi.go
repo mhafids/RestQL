@@ -1,4 +1,4 @@
-package queryrestapi
+package repository
 
 import (
 	"encoding/json"
@@ -15,21 +15,7 @@ type QueryConfig struct {
 	RequiredSelect bool
 }
 
-type ListPayload struct {
-	Sortby  string   `json:"sortby"`
-	Sort    string   `json:"sort"`
-	Orderby string   `json:"orderby"`
-	Limit   int      `json:"limit"`
-	Offset  int      `json:"offset"`
-	Skip    int      `json:"skip"`
-	Select  []string `json:"select"`
-
-	Find   IFilter `json:"find"`
-	Filter IFilter `json:"filter"`
-	Where  IFilter `json:"where"`
-}
-
-func NewQueryJSON(config *QueryConfig) *QueryJSON {
+func NewQueryJSON(config *QueryConfig) Repository {
 	return &QueryJSON{
 		Setting: config,
 	}
@@ -92,7 +78,7 @@ func (query *QueryJSON) List(listPayload ListPayload, model interface{}) (restap
 	return
 }
 
-func (query *QueryJSON) sortBy(listPayload ListPayload, model interface{}) (Query string, err error) {
+func (query *QueryJSON) SortBy(listPayload ListPayload, model interface{}) (Query string, err error) {
 	// Sort
 	request := listPayload
 	sortBy := ""
@@ -114,7 +100,7 @@ func (query *QueryJSON) sortBy(listPayload ListPayload, model interface{}) (Quer
 	return
 }
 
-func (query *QueryJSON) limit(listPayload ListPayload) (limit int, err error) {
+func (query *QueryJSON) Limit(listPayload ListPayload) (limit int, err error) {
 	offset, err := query.foffset(listPayload)
 	if err != nil {
 		return
@@ -141,7 +127,7 @@ func (query *QueryJSON) limit(listPayload ListPayload) (limit int, err error) {
 	return
 }
 
-func (query *QueryJSON) offset(listPayload ListPayload) (offset int, err error) {
+func (query *QueryJSON) Offset(listPayload ListPayload) (offset int, err error) {
 	offset, err = query.foffset(listPayload)
 	if err != nil {
 		return
@@ -179,7 +165,7 @@ func (query *QueryJSON) Filter(listPayload ListPayload, model interface{}) (filt
 	return
 }
 
-func (query *QueryJSON) selects(listPayload ListPayload, model interface{}) (selects []string, err error) {
+func (query *QueryJSON) Select(listPayload ListPayload, model interface{}) (selects []string, err error) {
 	request := listPayload
 
 	if len(request.Select) == 0 && query.Setting.RequiredSelect {

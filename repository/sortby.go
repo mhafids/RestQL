@@ -1,4 +1,4 @@
-package queryrestapi
+package repository
 
 import (
 	"errors"

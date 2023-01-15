@@ -3,6 +3,8 @@ package parser
 import (
 	"errors"
 	"reflect"
+	"restql/constants"
+	"restql/repository"
 	"strings"
 )
 
@@ -12,36 +14,186 @@ type paramMongoTranslate struct {
 }
 
 type MongoModel struct {
+	repo repository.Repository
 }
 
-func NewMongoModel() *MongoModel {
-	return &MongoModel{}
+func NewMongoModel(repo repository.Repository) Parser {
+	return &MongoModel{
+		repo: repo,
+	}
 }
 
-func (mts *MongoModel) Query(data interface{}) (documentquery map[string]IFilter, err error) {
-	documentquery = make(map[string]IFilter, 0)
-	if reflect.TypeOf(data).Kind() == reflect.Map {
-		for key, value := range data.(map[string]interface{}) {
-			doc, errl := mts.parser(paramMongoTranslate{data: value})
-			if errl != nil {
-				err = errl
-				break
+func (mts *MongoModel) Command(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+
+	return
+}
+
+func (mts *MongoModel) Query(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+	for key, value := range data {
+		if value.Find != nil || value.Filter != nil || value.Where != nil {
+			err = mts.filter(value, model[key])
+			if err != nil {
+				return
 			}
-			documentquery[key] = doc
 		}
 
-		if err != nil {
-			return
+		if value.Orderby != "" || value.Sort != "" || value.Sortby != "" {
+			err = mts.sortby(value, model[key])
+			if err != nil {
+				return
+			}
 		}
+
+		if value.Limit > 0 {
+			err = mts.limit(value)
+			if err != nil {
+				return
+			}
+		}
+
+		if value.Offset > 0 || value.Skip > 0 {
+			err = mts.offset(value)
+			if err != nil {
+				return
+			}
+		}
+
+		if len(value.Select) > 0 {
+			err = mts.selects(value, model[key])
+			if err != nil {
+				return
+			}
+		}
+
+		repo[key] = mts.repo
+	}
+	return
+}
+
+func (mts *MongoModel) filter(data interface{}, model interface{}) (err error) {
+	filter, err := mts.parser(paramMongoTranslate{data: data})
+	if err != nil {
 		return
-	} else {
-		err = errors.New("query must objects")
+	}
+
+	err = mts.repo.Filter(filter, model)
+	if err != nil {
 		return
 	}
 	return
 }
 
-func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err error) {
+func (mts *MongoModel) sortby(data ModelActions, model interface{}) (err error) {
+
+	// Sort
+	sortBy := ""
+
+	if data.Sort != "" {
+		sortBy = data.Sort
+	}
+
+	if data.Orderby != "" {
+		sortBy = data.Orderby
+	}
+
+	if sortBy == "" {
+		// id.asc is the default sort query
+		sortBy = "id asc"
+	}
+
+	var userFields = mts.getFields(model)
+	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
+	commasplit := strings.Split(sortBy, ",")
+	var orderby []repository.ISortBy
+
+	for _, cs := range commasplit {
+		splits := strings.Split(cs, " ")
+		if len(splits) != 2 {
+			splits = append(splits, "asc")
+		}
+		field, order := splits[0], splits[1]
+		order = strings.ToLower(order)
+
+		if order != "desc" && order != "asc" {
+			err = errors.New("malformed order direction in sortBy query parameter, should be asc or desc")
+			return
+		}
+
+		if !mts.stringInSlice(userFields, field) && field != "id" {
+			err = errors.New("unknown field in sortBy query parameter")
+			return
+		}
+
+		orderby = append(orderby, repository.ISortBy{
+			Field: field,
+			Sort:  strings.ToUpper(order),
+		})
+	}
+
+	err = mts.repo.SortBy(orderby, model)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (mts *MongoModel) limit(data ModelActions) (err error) {
+	// Limit
+	var limit int = 10
+	if data.Limit > 0 {
+		limit = data.Limit
+	}
+
+	err = mts.repo.Limit(int64(limit))
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (mts *MongoModel) offset(data ModelActions) (err error) {
+	strOffset := data.Offset
+	strSkip := data.Skip
+
+	offset := 0
+	if strOffset > 0 {
+		offset = strOffset
+	} else if strSkip > 0 {
+		offset = strSkip
+	}
+
+	err = mts.repo.Offset(int64(offset))
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (mts *MongoModel) selects(data ModelActions, model interface{}) (err error) {
+	selectcheck := func(selects []string, model interface{}) error {
+		var userFields = mts.getFields(model)
+		for _, Select := range selects {
+			if !mts.stringInSlice(userFields, Select) {
+				return errors.New(Select + " field not found")
+			}
+		}
+
+		return nil
+	}
+
+	err = selectcheck(data.Select, mts)
+	if err != nil {
+		return
+	}
+
+	err = mts.repo.Select(data.Select, model)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (mts *MongoModel) parser(param paramMongoTranslate) (filtering repository.IFilter, err error) {
 	data := param.data
 	rt := reflect.TypeOf(data)
 	switch rt.Kind() {
@@ -51,8 +203,8 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: AND,
+		filtering = repository.IFilter{
+			Operator: constants.AND,
 			Items:    items,
 		}
 		return
@@ -63,8 +215,8 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: AND,
+		filtering = repository.IFilter{
+			Operator: constants.AND,
 			Items:    items,
 		}
 		return
@@ -72,47 +224,47 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 	case reflect.Map:
 		for key, value := range data.(map[string]interface{}) {
 			switch key {
-			case AND:
+			case constants.AND:
 				items, errl := mts.loopmap(paramMongoTranslate{data: value})
 				if errl != nil {
 					err = errl
 					return
 				}
-				filtering = IFilter{
-					Operator: AND,
+				filtering = repository.IFilter{
+					Operator: constants.AND,
 					Items:    items,
 				}
 				return
-			case OR:
+			case constants.OR:
 				items, errl := mts.loopmap(paramMongoTranslate{data: value})
 				if errl != nil {
 					err = errl
 					return
 				}
-				filtering = IFilter{
-					Operator: OR,
+				filtering = repository.IFilter{
+					Operator: constants.OR,
 					Items:    items,
 				}
 				return
-			case NOT:
+			case constants.NOT:
 				items, errl := mts.loopmap(paramMongoTranslate{data: value})
 				if errl != nil {
 					err = errl
 					return
 				}
-				filtering = IFilter{
-					Operator: NOT,
+				filtering = repository.IFilter{
+					Operator: constants.NOT,
 					Items:    items,
 				}
 				return
-			case NOR:
+			case constants.NOR:
 				items, errl := mts.loopmap(paramMongoTranslate{data: value})
 				if errl != nil {
 					err = errl
 					return
 				}
-				filtering = IFilter{
-					Operator: NOR,
+				filtering = repository.IFilter{
+					Operator: constants.NOR,
 					Items:    items,
 				}
 				return
@@ -125,8 +277,8 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 						err = errl
 						return
 					}
-					filtering = IFilter{
-						Operator: AND,
+					filtering = repository.IFilter{
+						Operator: constants.AND,
 						Items:    items,
 					}
 					return
@@ -138,8 +290,8 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 						}
 						return
 					} else {
-						filtering = IFilter{
-							Operator: EQ,
+						filtering = repository.IFilter{
+							Operator: constants.EQ,
 							Field:    key,
 							Value:    value,
 						}
@@ -154,7 +306,7 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering IFilter, err
 	return
 }
 
-func (mts *MongoModel) loopmap(param paramMongoTranslate) (filtering []IFilter, err error) {
+func (mts *MongoModel) loopmap(param paramMongoTranslate) (filtering []repository.IFilter, err error) {
 	data := param.data
 	rt := reflect.TypeOf(data)
 	switch rt.Kind() {
@@ -195,121 +347,121 @@ func (mts *MongoModel) loopmap(param paramMongoTranslate) (filtering []IFilter, 
 	return
 }
 
-func (mts *MongoModel) operatorcase(key string, upperkey string, value interface{}) (filtering IFilter, err error) {
+func (mts *MongoModel) operatorcase(key string, upperkey string, value interface{}) (filtering repository.IFilter, err error) {
 	switch strings.ToLower(key) {
-	case GT:
-		filtering = IFilter{
-			Operator: GT,
+	case constants.GT:
+		filtering = repository.IFilter{
+			Operator: constants.GT,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case GTE:
-		filtering = IFilter{
-			Operator: GTE,
+	case constants.GTE:
+		filtering = repository.IFilter{
+			Operator: constants.GTE,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case ILIKE:
-		filtering = IFilter{
-			Operator: ILIKE,
+	case constants.ILIKE:
+		filtering = repository.IFilter{
+			Operator: constants.ILIKE,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case LIKE:
-		filtering = IFilter{
-			Operator: LIKE,
+	case constants.LIKE:
+		filtering = repository.IFilter{
+			Operator: constants.LIKE,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case IN:
-		filtering = IFilter{
-			Operator: IN,
+	case constants.IN:
+		filtering = repository.IFilter{
+			Operator: constants.IN,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case LT:
-		filtering = IFilter{
-			Operator: LT,
+	case constants.LT:
+		filtering = repository.IFilter{
+			Operator: constants.LT,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case LTE:
-		filtering = IFilter{
-			Operator: LTE,
+	case constants.LTE:
+		filtering = repository.IFilter{
+			Operator: constants.LTE,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case NE:
-		filtering = IFilter{
-			Operator: NE,
+	case constants.NE:
+		filtering = repository.IFilter{
+			Operator: constants.NE,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case NIN:
-		filtering = IFilter{
-			Operator: NIN,
+	case constants.NIN:
+		filtering = repository.IFilter{
+			Operator: constants.NIN,
 			Field:    upperkey,
 			Value:    value,
 		}
 		return
 
-	case AND:
+	case constants.AND:
 		items, errl := mts.loopmap(paramMongoTranslate{data: value, key: upperkey})
 		if errl != nil {
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: AND,
+		filtering = repository.IFilter{
+			Operator: constants.AND,
 			Items:    items,
 		}
 		return
-	case OR:
+	case constants.OR:
 		items, errl := mts.loopmap(paramMongoTranslate{data: value, key: upperkey})
 		if errl != nil {
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: OR,
+		filtering = repository.IFilter{
+			Operator: constants.OR,
 			Items:    items,
 		}
 		return
-	case NOT:
+	case constants.NOT:
 		items, errl := mts.loopmap(paramMongoTranslate{data: value, key: upperkey})
 		if errl != nil {
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: NOT,
+		filtering = repository.IFilter{
+			Operator: constants.NOT,
 			Items:    items,
 		}
 		return
-	case NOR:
+	case constants.NOR:
 		items, errl := mts.loopmap(paramMongoTranslate{data: value, key: upperkey})
 		if errl != nil {
 			err = errl
 			return
 		}
-		filtering = IFilter{
-			Operator: NOR,
+		filtering = repository.IFilter{
+			Operator: constants.NOR,
 			Items:    items,
 		}
 		return
@@ -320,4 +472,22 @@ func (mts *MongoModel) operatorcase(key string, upperkey string, value interface
 	}
 
 	return
+}
+
+func (mts *MongoModel) getFields(Interfacefield interface{}) []string {
+	var field []string
+	v := reflect.ValueOf(Interfacefield)
+	for i := 0; i < v.Type().NumField(); i++ {
+		field = append(field, v.Type().Field(i).Tag.Get("json"))
+	}
+	return field
+}
+
+func (mts *MongoModel) stringInSlice(strSlice []string, s string) bool {
+	for _, v := range strSlice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

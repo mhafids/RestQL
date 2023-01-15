@@ -1,7 +1,9 @@
-package queryrestapi
+package repository
 
 import (
 	"errors"
+	"reflect"
+	"restql/constants"
 	"strings"
 )
 
@@ -21,7 +23,7 @@ func (query *QueryJSON) filterDB(filter IFilter, model interface{}) (filterProce
 func operatorComparison(filter IFilter, model []string) (fields string, values []interface{}, err error) {
 
 	switch strings.ToLower(filter.Operator) {
-	case EQ:
+	case constants.EQ:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " = ?"
@@ -30,7 +32,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case NE:
+	case constants.NE:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " <> ?"
@@ -39,7 +41,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case LIKE:
+	case constants.LIKE:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, "%"+filter.Value.(string)+"%")
 			fields += filter.Field + " LIKE ?"
@@ -48,7 +50,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case ILIKE:
+	case constants.ILIKE:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, "%"+filter.Value.(string)+"%")
 			fields += "LOWER(" + filter.Field + ") LIKE LOWER(?)"
@@ -57,7 +59,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case GT:
+	case constants.GT:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " > ?"
@@ -66,7 +68,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case GTE:
+	case constants.GTE:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " >= ?"
@@ -75,7 +77,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case LT:
+	case constants.LT:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " < ?"
@@ -84,7 +86,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case LTE:
+	case constants.LTE:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " <= ?"
@@ -93,7 +95,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case NIN:
+	case constants.NIN:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " NOT IN ?"
@@ -102,7 +104,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case IN:
+	case constants.IN:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
 			fields += filter.Field + " IN ?"
@@ -111,7 +113,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			return
 		}
 
-	case NOT:
+	case constants.NOT:
 		if len(filter.Items) > 0 {
 			var fieldsNAND []string
 			for _, item := range filter.Items {
@@ -137,7 +139,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			}
 		}
 
-	case NOR:
+	case constants.NOR:
 		if len(filter.Items) > 0 {
 			var fieldsNOR []string
 			for _, item := range filter.Items {
@@ -163,7 +165,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			}
 		}
 
-	case AND:
+	case constants.AND:
 		if len(filter.Items) > 0 {
 			var fieldsAND []string
 			for _, item := range filter.Items {
@@ -189,7 +191,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 			}
 		}
 
-	case OR:
+	case constants.OR:
 		if len(filter.Items) > 0 {
 			var fieldsOR []string
 			for _, item := range filter.Items {
@@ -224,4 +226,13 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 
 	// fmt.Println(strings.ToLower(filter.Operator), fields)
 	return
+}
+
+func getFields(Interfacefield interface{}) []string {
+	var field []string
+	v := reflect.ValueOf(Interfacefield)
+	for i := 0; i < v.Type().NumField(); i++ {
+		field = append(field, v.Type().Field(i).Tag.Get("json"))
+	}
+	return field
 }

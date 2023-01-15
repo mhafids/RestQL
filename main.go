@@ -1,5 +1,7 @@
 package main
 
-func main() {
+import "restql/parser"
 
+func main() {
+  parser.
 }
