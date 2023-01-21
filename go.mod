@@ -1,3 +1,3 @@
-module restql
+module RestQL
 
 go 1.19

@@ -1,10 +1,10 @@
 package parser
 
 import (
+	"RestQL/constants"
+	"RestQL/repository"
 	"errors"
 	"reflect"
-	"restql/constants"
-	"restql/repository"
 	"strings"
 )
 

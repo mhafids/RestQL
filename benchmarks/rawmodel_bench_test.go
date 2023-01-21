@@ -1,9 +1,9 @@
 package benchmarks
 
 import (
+	"RestQL/parser"
+	"RestQL/repository/repo"
 	"encoding/json"
-	"restql/parser"
-	"restql/repository/repo"
 	"testing"
 )
 

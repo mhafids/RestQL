@@ -1,8 +1,8 @@
 package repo
 
 import (
+	"RestQL/repository"
 	"encoding/json"
-	"restql/repository"
 	"strings"
 )
 

@@ -1,11 +1,11 @@
 package parser
 
 import (
+	"RestQL/repository"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
-	"restql/repository"
 	"strings"
 )
 
