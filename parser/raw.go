@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"restql/repository"
@@ -8,15 +10,16 @@ import (
 )
 
 type RawModel struct {
-	repo  repository.Repository
+	repo repository.Repository
 }
 
 func NewRawModel(repo repository.Repository) Parser {
 	return &RawModel{
-		repo:  repo,
+		repo: repo,
 	}
 }
 
+// Command for raw command to parser
 func (mdl *RawModel) Command(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	for _, value := range data {
 		if value.Insert != nil {
@@ -32,7 +35,9 @@ func (mdl *RawModel) Command(data ModelColumn, model map[string]interface{}) (re
 	return
 }
 
+// Query for raw query to parser
 func (mdl *RawModel) Query(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+	repo = make(map[string]repository.Repository, 0)
 	for key, value := range data {
 		if value.Find != nil || value.Filter != nil || value.Where != nil {
 			err = mdl.filter(value, model[key])
@@ -75,6 +80,49 @@ func (mdl *RawModel) Query(data ModelColumn, model map[string]interface{}) (repo
 	return
 }
 
+func (mdl *RawModel) QueryOne(data ModelActions, model interface{}) (repo repository.Repository, err error) {
+
+	if data.Find != nil || data.Filter != nil || data.Where != nil {
+		err = mdl.filter(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Orderby != "" || data.Sort != "" || data.Sortby != "" {
+		err = mdl.sortby(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Limit > 0 {
+		err = mdl.limit(data)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Offset > 0 || data.Skip > 0 {
+		err = mdl.offset(data)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(data.Select) > 0 {
+		err = mdl.selects(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	repo = mdl.repo
+
+	return
+}
+
+// ToORM raw parser to ORM
 func (mdl *RawModel) ToORM() (orm repository.IORM, err error) {
 	orm, err = mdl.repo.ToORM()
 	if err != nil {
@@ -84,17 +132,23 @@ func (mdl *RawModel) ToORM() (orm repository.IORM, err error) {
 }
 
 func (mdl *RawModel) filter(data ModelActions, model interface{}) (err error) {
+	filter := repository.IFilter{}
 	Filter := data.Filter
 	where := data.Where
 	find := data.Find
 
 	if where != nil {
 		Filter = where
+		where = nil
 	} else if find != nil {
 		Filter = find
+		find = nil
 	}
 
-	err = mdl.repo.Filter(Filter.(repository.IFilter), model)
+	mdl.transcode(Filter, &filter)
+	Filter = nil
+	err = mdl.repo.Filter(filter, model)
+	filter = repository.IFilter{}
 
 	if err != nil {
 		return
@@ -163,7 +217,7 @@ func (mdl *RawModel) limit(data ModelActions) (err error) {
 		limit = data.Limit
 	}
 
-	err = mdl.repo.Limit(int64(limit))
+	err = mdl.repo.Limit(limit)
 	if err != nil {
 		return
 	}
@@ -181,7 +235,7 @@ func (mdl *RawModel) offset(data ModelActions) (err error) {
 		offset = strSkip
 	}
 
-	err = mdl.repo.Offset(int64(offset))
+	err = mdl.repo.Offset(offset)
 	if err != nil {
 		return
 	}
@@ -228,4 +282,12 @@ func (mdl *RawModel) stringInSlice(strSlice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func (mdl *RawModel) transcode(in, out interface{}) {
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(in)
+	json.NewDecoder(buf).Decode(out)
+	buf = nil
+	in = nil
 }

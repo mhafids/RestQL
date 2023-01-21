@@ -1,7 +1,12 @@
 package main
 
-import "restql/parser"
+// import (
+// 	"restql/parser"
+// 	"restql/repository"
+// )
 
-func main() {
-  parser.
-}
+// func main() {
+//   repo := repository.NewQueryJSON(&repository.QueryConfig{})
+//   pr := parser.NewRawModel(repo)
+
+// }

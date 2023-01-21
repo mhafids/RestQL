@@ -29,6 +29,7 @@ func (mts *MongoModel) Command(data ModelColumn, model map[string]interface{}) (
 }
 
 func (mts *MongoModel) Query(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+	repo = make(map[string]repository.Repository, 0)
 	for key, value := range data {
 		if value.Find != nil || value.Filter != nil || value.Where != nil {
 			err = mts.filter(value, model[key])
@@ -70,8 +71,60 @@ func (mts *MongoModel) Query(data ModelColumn, model map[string]interface{}) (re
 	return
 }
 
-func (mts *MongoModel) filter(data interface{}, model interface{}) (err error) {
-	filter, err := mts.parser(paramMongoTranslate{data: data})
+func (mts *MongoModel) QueryOne(data ModelActions, model interface{}) (repo repository.Repository, err error) {
+
+	if data.Find != nil || data.Filter != nil || data.Where != nil {
+		err = mts.filter(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Orderby != "" || data.Sort != "" || data.Sortby != "" {
+		err = mts.sortby(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Limit > 0 {
+		err = mts.limit(data)
+		if err != nil {
+			return
+		}
+	}
+
+	if data.Offset > 0 || data.Skip > 0 {
+		err = mts.offset(data)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(data.Select) > 0 {
+		err = mts.selects(data, model)
+		if err != nil {
+			return
+		}
+	}
+
+	repo = mts.repo
+
+	return
+}
+
+func (mts *MongoModel) filter(data ModelActions, model interface{}) (err error) {
+	Filter := data.Filter
+	where := data.Where
+	find := data.Find
+
+	if where != nil {
+		Filter = where
+	} else if find != nil {
+		Filter = find
+	}
+
+	filter, err := mts.parser(paramMongoTranslate{data: Filter})
 	if err != nil {
 		return
 	}
@@ -144,7 +197,7 @@ func (mts *MongoModel) limit(data ModelActions) (err error) {
 		limit = data.Limit
 	}
 
-	err = mts.repo.Limit(int64(limit))
+	err = mts.repo.Limit(limit)
 	if err != nil {
 		return
 	}
@@ -162,7 +215,7 @@ func (mts *MongoModel) offset(data ModelActions) (err error) {
 		offset = strSkip
 	}
 
-	err = mts.repo.Offset(int64(offset))
+	err = mts.repo.Offset(offset)
 	if err != nil {
 		return
 	}

@@ -5,6 +5,7 @@ import "restql/repository"
 type ModelColumn map[string]ModelActions
 
 type Parser interface {
+	QueryOne(data ModelActions, model interface{}) (repo repository.Repository, err error)
 	Query(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error)
 	Command(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error)
 }

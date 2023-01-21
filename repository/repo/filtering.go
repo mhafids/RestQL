@@ -1,26 +1,27 @@
-package repository
+package repo
 
 import (
 	"errors"
 	"reflect"
 	"restql/constants"
+	"restql/repository"
 	"strings"
 )
 
-func (query *QueryJSON) filterDB(filter IFilter, model interface{}) (filterProcessed IFilterProcessed, err error) {
+func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filterProcessed repository.IFilterProcessed, err error) {
 	var userFields = getFields(model)
 	fields, values, err := operatorComparison(filter, userFields)
 	if err != nil {
 		return
 	}
-	filterProcessed = IFilterProcessed{
+	filterProcessed = repository.IFilterProcessed{
 		Field:  fields,
 		Values: values,
 	}
 	return
 }
 
-func operatorComparison(filter IFilter, model []string) (fields string, values []interface{}, err error) {
+func operatorComparison(filter repository.IFilter, model []string) (fields string, values []interface{}, err error) {
 
 	switch strings.ToLower(filter.Operator) {
 	case constants.EQ:
@@ -218,7 +219,7 @@ func operatorComparison(filter IFilter, model []string) (fields string, values [
 		}
 
 	default:
-		err = errors.New("\"" + filter.Operator + "\" not available")
+		err = errors.New("Operator \"" + filter.Operator + "\" not available")
 		if err != nil {
 			return
 		}
