@@ -1,12 +1,13 @@
 package parser
 
 import (
-	"RestQL/repository"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/mhafids/RestQL/repository"
 )
 
 type RawModel struct {

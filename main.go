@@ -1,11 +1,12 @@
 package main
 
 import (
-	"RestQL/parser"
-	"RestQL/repository"
-	"RestQL/repository/repo"
 	"encoding/json"
 	"fmt"
+
+	"github.com/mhafids/RestQL/parser"
+	"github.com/mhafids/RestQL/repository"
+	"github.com/mhafids/RestQL/repository/repo"
 )
 
 type Rawmodels struct {

@@ -1,6 +1,6 @@
 package parser
 
-import "RestQL/repository"
+import "github.com/mhafids/RestQL/repository"
 
 type ModelColumn map[string]ModelActions
 

@@ -1,11 +1,12 @@
 package repo
 
 import (
-	"RestQL/constants"
-	"RestQL/repository"
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/mhafids/RestQL/constants"
+	"github.com/mhafids/RestQL/repository"
 )
 
 func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filterProcessed repository.IFilterProcessed, err error) {

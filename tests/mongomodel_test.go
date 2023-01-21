@@ -1,10 +1,11 @@
 package tests
 
 import (
-	"RestQL/parser"
-	"RestQL/repository/repo"
 	"encoding/json"
 	"testing"
+
+	"github.com/mhafids/RestQL/parser"
+	"github.com/mhafids/RestQL/repository/repo"
 )
 
 func TestMongoModelQueryOne(t *testing.T) {

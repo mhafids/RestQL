@@ -1,11 +1,12 @@
 package parser
 
 import (
-	"RestQL/constants"
-	"RestQL/repository"
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/mhafids/RestQL/constants"
+	"github.com/mhafids/RestQL/repository"
 )
 
 type paramMongoTranslate struct {

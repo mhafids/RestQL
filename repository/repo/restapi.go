@@ -1,9 +1,10 @@
 package repo
 
 import (
-	"RestQL/repository"
 	"encoding/json"
 	"strings"
+
+	"github.com/mhafids/RestQL/repository"
 )
 
 type Repo struct {
