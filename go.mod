@@ -1,3 +1,3 @@
 module github.com/mhafids/RestQL
 
-go 1.19
+go 1.15
