@@ -1,7 +1,6 @@
 package benchmarks
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/mhafids/RestQL/parser"
@@ -13,16 +12,12 @@ func BenchmarkRawModelQueryOne(b *testing.B) {
 	mts := parser.NewRawModel(repoCfg)
 	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 
-	var operatorMap parser.ModelActions
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			op, err := mts.QueryOne(operatorMap, Rawmodels{})
+			op, err := mts.QueryOne(operatorJSON, Rawmodels{})
 			if err != nil {
 				b.Error(err)
 			}
@@ -41,10 +36,6 @@ func BenchmarkRawModelBenchQuery(b *testing.B) {
 	mts := parser.NewRawModel(repoCfg)
 	var operatorJSON string = `{"test":{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}}`
 
-	var operatorMap parser.ModelColumn
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
 	var models map[string]interface{} = make(map[string]interface{}, 0)
 	models["test"] = Rawmodels{}
 
@@ -53,7 +44,7 @@ func BenchmarkRawModelBenchQuery(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			op, err := mts.Query(operatorMap, models)
+			op, err := mts.Query(operatorJSON, models)
 			if err != nil {
 				b.Error(err)
 			}

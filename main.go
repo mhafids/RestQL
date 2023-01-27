@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/mhafids/RestQL/parser"
@@ -27,11 +26,7 @@ func Rawmodel(repocfg repository.Repository) {
 	mts := parser.NewRawModel(repocfg)
 	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 
-	var operatorMap parser.ModelActions
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
-	op, err := mts.QueryOne(operatorMap, Rawmodels{})
+	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -48,11 +43,7 @@ func Mongomodel(repocfg repository.Repository) {
 	mts := parser.NewMongoModel(repoCfg)
 	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
 
-	var operatorMap parser.ModelActions
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
-	op, err := mts.QueryOne(operatorMap, Rawmodels{})
+	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/mhafids/RestQL/parser"
@@ -13,12 +12,7 @@ func TestRawModelQueryOne(t *testing.T) {
 	mts := parser.NewRawModel(repoCfg)
 	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 
-	var operatorMap parser.ModelActions
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
-	t.Log(operatorMap.Find)
-	op, err := mts.QueryOne(operatorMap, Rawmodels{})
+	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -35,14 +29,10 @@ func TestRawModelQuery(t *testing.T) {
 	mts := parser.NewRawModel(repoCfg)
 	var operatorJSON string = `{"test":{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}}`
 
-	var operatorMap parser.ModelColumn
-	json.Unmarshal([]byte(operatorJSON), &operatorMap)
-	operatorJSON = ""
-
 	var models map[string]interface{} = make(map[string]interface{}, 0)
 	models["test"] = Rawmodels{}
 
-	op, err := mts.Query(operatorMap, models)
+	op, err := mts.Query(operatorJSON, models)
 	if err != nil {
 		t.Error(err)
 	}

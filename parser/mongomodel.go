@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -14,6 +15,29 @@ type paramMongoTranslate struct {
 	key  string
 }
 
+type mongomodelactions struct {
+	// Command
+	Insert interface{} `json:"insert"`
+	Update interface{} `json:"update"`
+	Delete interface{} `json:"delete"`
+
+	// Query
+	Find   map[string]interface{} `json:"find"`
+	Filter map[string]interface{} `json:"filter"`
+	Where  map[string]interface{} `json:"where"`
+
+	Sortby  string `json:"sortby"`
+	Sort    string `json:"sort"`
+	Orderby string `json:"orderby"`
+
+	Limit int `json:"limit"`
+
+	Offset int `json:"offset"`
+	Skip   int `json:"skip"`
+
+	Select []string `json:"select"`
+}
+
 type MongoModel struct {
 	repo repository.Repository
 }
@@ -24,14 +48,21 @@ func NewMongoModel(repo repository.Repository) Parser {
 	}
 }
 
-func (mts *MongoModel) Command(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 
 	return
 }
 
-func (mts *MongoModel) Query(data ModelColumn, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
-	repo = make(map[string]repository.Repository, 0)
-	for key, value := range data {
+func (mts *MongoModel) Query(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+	var datamodel map[string]mongomodelactions
+	err = json.Unmarshal([]byte(data), &datamodel)
+	if err != nil {
+		return
+	}
+	data = ""
+
+	repo = map[string]repository.Repository{}
+	for key, value := range datamodel {
 		if value.Find != nil || value.Filter != nil || value.Where != nil {
 			err = mts.filter(value, model[key])
 			if err != nil {
@@ -72,38 +103,44 @@ func (mts *MongoModel) Query(data ModelColumn, model map[string]interface{}) (re
 	return
 }
 
-func (mts *MongoModel) QueryOne(data ModelActions, model interface{}) (repo repository.Repository, err error) {
+func (mts *MongoModel) QueryOne(data string, model interface{}) (repo repository.Repository, err error) {
+	var datamodel mongomodelactions
+	err = json.Unmarshal([]byte(data), &datamodel)
+	if err != nil {
+		return
+	}
+	data = ""
 
-	if data.Find != nil || data.Filter != nil || data.Where != nil {
-		err = mts.filter(data, model)
+	if datamodel.Find != nil || datamodel.Filter != nil || datamodel.Where != nil {
+		err = mts.filter(datamodel, model)
 		if err != nil {
 			return
 		}
 	}
 
-	if data.Orderby != "" || data.Sort != "" || data.Sortby != "" {
-		err = mts.sortby(data, model)
+	if datamodel.Orderby != "" || datamodel.Sort != "" || datamodel.Sortby != "" {
+		err = mts.sortby(datamodel, model)
 		if err != nil {
 			return
 		}
 	}
 
-	if data.Limit > 0 {
-		err = mts.limit(data)
+	if datamodel.Limit > 0 {
+		err = mts.limit(datamodel)
 		if err != nil {
 			return
 		}
 	}
 
-	if data.Offset > 0 || data.Skip > 0 {
-		err = mts.offset(data)
+	if datamodel.Offset > 0 || datamodel.Skip > 0 {
+		err = mts.offset(datamodel)
 		if err != nil {
 			return
 		}
 	}
 
-	if len(data.Select) > 0 {
-		err = mts.selects(data, model)
+	if len(datamodel.Select) > 0 {
+		err = mts.selects(datamodel, model)
 		if err != nil {
 			return
 		}
@@ -114,7 +151,7 @@ func (mts *MongoModel) QueryOne(data ModelActions, model interface{}) (repo repo
 	return
 }
 
-func (mts *MongoModel) filter(data ModelActions, model interface{}) (err error) {
+func (mts *MongoModel) filter(data mongomodelactions, model interface{}) (err error) {
 	Filter := data.Filter
 	where := data.Where
 	find := data.Find
@@ -137,7 +174,7 @@ func (mts *MongoModel) filter(data ModelActions, model interface{}) (err error) 
 	return
 }
 
-func (mts *MongoModel) sortby(data ModelActions, model interface{}) (err error) {
+func (mts *MongoModel) sortby(data mongomodelactions, model interface{}) (err error) {
 
 	// Sort
 	sortBy := ""
@@ -191,7 +228,7 @@ func (mts *MongoModel) sortby(data ModelActions, model interface{}) (err error) 
 	return
 }
 
-func (mts *MongoModel) limit(data ModelActions) (err error) {
+func (mts *MongoModel) limit(data mongomodelactions) (err error) {
 	// Limit
 	var limit int = 10
 	if data.Limit > 0 {
@@ -205,7 +242,7 @@ func (mts *MongoModel) limit(data ModelActions) (err error) {
 	return
 }
 
-func (mts *MongoModel) offset(data ModelActions) (err error) {
+func (mts *MongoModel) offset(data mongomodelactions) (err error) {
 	strOffset := data.Offset
 	strSkip := data.Skip
 
@@ -223,7 +260,7 @@ func (mts *MongoModel) offset(data ModelActions) (err error) {
 	return
 }
 
-func (mts *MongoModel) selects(data ModelActions, model interface{}) (err error) {
+func (mts *MongoModel) selects(data mongomodelactions, model interface{}) (err error) {
 	selectcheck := func(selects []string, model interface{}) error {
 		var userFields = mts.getFields(model)
 		for _, Select := range selects {
@@ -524,8 +561,6 @@ func (mts *MongoModel) operatorcase(key string, upperkey string, value interface
 		err = errors.New("\"" + key + "\" operator not found")
 		return
 	}
-
-	return
 }
 
 func (mts *MongoModel) getFields(Interfacefield interface{}) []string {
