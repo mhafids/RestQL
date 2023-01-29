@@ -1,13 +1,20 @@
 package repo
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/mhafids/RestQL/utils"
 )
 
 func ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (string, error) {
-	var userFields = getFields(Interfacefield)
+	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields.Reset()
+	defer utils.Bufpool.Put(userFields)
+
+	getFields(userFields, Interfacefield)
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []string
@@ -34,11 +41,6 @@ func ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (stri
 	return strings.Join(orderby, ", "), nil
 }
 
-func stringInSlice(strSlice []string, s string) bool {
-	for _, v := range strSlice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+func stringInSlice(bufferfield *bytes.Buffer, s string) bool {
+	return bytes.Contains(bufferfield.Bytes(), []byte(s))
 }

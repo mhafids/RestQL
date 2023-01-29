@@ -8,15 +8,15 @@ import (
 )
 
 func BenchmarkRawModelQueryOne(b *testing.B) {
-	repoCfg := repo.NewRepo(&repo.RepoConfig{})
-	mts := parser.NewRawModel(repoCfg)
-	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			repoCfg := repo.NewRepo(&repo.RepoConfig{})
+			mts := parser.NewRawModel(repoCfg)
+			var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 			op, err := mts.Query(operatorJSON, Rawmodels{})
 			if err != nil {
 				b.Error(err)

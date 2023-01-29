@@ -1,6 +1,8 @@
 package parser
 
-import "github.com/mhafids/RestQL/repository"
+import (
+	"github.com/mhafids/RestQL/repository"
+)
 
 type Parser interface {
 	Query(data string, model interface{}) (repo repository.Repository, err error)

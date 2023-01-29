@@ -11,7 +11,7 @@ type IFilter struct {
 
 type IFilterProcessed struct {
 	Field  string
-	Values []interface{}
+	Values []string
 }
 
 type ISortBy struct {

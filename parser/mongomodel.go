@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/mhafids/RestQL/constants"
 	"github.com/mhafids/RestQL/repository"
+	"github.com/mhafids/RestQL/utils"
 )
 
 type paramMongoTranslate struct {
@@ -53,7 +55,7 @@ func (mts *MongoModel) CommandBatch(data string, model map[string]interface{}) (
 	return
 }
 
-func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error){
+func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error) {
 
 	return
 }
@@ -197,7 +199,11 @@ func (mts *MongoModel) sortby(data mongomodelactions, model interface{}) (err er
 		sortBy = "id asc"
 	}
 
-	var userFields = mts.getFields(model)
+	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields.Reset()
+	defer utils.Bufpool.Put(userFields)
+
+	mts.getFields(userFields, model)
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []repository.ISortBy
@@ -267,7 +273,11 @@ func (mts *MongoModel) offset(data mongomodelactions) (err error) {
 
 func (mts *MongoModel) selects(data mongomodelactions, model interface{}) (err error) {
 	selectcheck := func(selects []string, model interface{}) error {
-		var userFields = mts.getFields(model)
+		userFields := utils.Bufpool.Get().(*bytes.Buffer)
+		userFields.Reset()
+		defer utils.Bufpool.Put(userFields)
+
+		mts.getFields(userFields, model)
 		for _, Select := range selects {
 			if !mts.stringInSlice(userFields, Select) {
 				return errors.New(Select + " field not found")
@@ -568,20 +578,16 @@ func (mts *MongoModel) operatorcase(key string, upperkey string, value interface
 	}
 }
 
-func (mts *MongoModel) getFields(Interfacefield interface{}) []string {
-	var field []string
+func (mts *MongoModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) {
 	v := reflect.ValueOf(Interfacefield)
 	for i := 0; i < v.Type().NumField(); i++ {
-		field = append(field, v.Type().Field(i).Tag.Get("json"))
-	}
-	return field
-}
-
-func (mts *MongoModel) stringInSlice(strSlice []string, s string) bool {
-	for _, v := range strSlice {
-		if v == s {
-			return true
+		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
+		if i+1 < v.Type().NumField() {
+			buffer.WriteByte('.')
 		}
 	}
-	return false
+}
+
+func (mts *MongoModel) stringInSlice(bufferfield *bytes.Buffer, s string) bool {
+	return bytes.Contains(bufferfield.Bytes(), []byte(s))
 }

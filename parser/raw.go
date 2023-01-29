@@ -1,12 +1,14 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
 
 	"github.com/mhafids/RestQL/repository"
+	"github.com/mhafids/RestQL/utils"
 )
 
 type RawModel struct {
@@ -96,7 +98,7 @@ func (mdl *RawModel) QueryBatch(data string, model map[string]interface{}) (repo
 
 // Query for single raw parser to Repository ORM
 func (mdl *RawModel) Query(data string, model interface{}) (repo repository.Repository, err error) {
-	var datamodel rawmodelactions
+	datamodel := rawmodelactions{}
 	json.Unmarshal([]byte(data), &datamodel)
 	data = ""
 
@@ -196,7 +198,11 @@ func (mdl *RawModel) sortby(data rawmodelactions, model interface{}) (err error)
 		sortBy = "id asc"
 	}
 
-	var userFields = mdl.getFields(model)
+	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields.Reset()
+	defer utils.Bufpool.Put(userFields)
+
+	mdl.getFields(userFields, model)
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []repository.ISortBy
@@ -266,7 +272,10 @@ func (mdl *RawModel) offset(data rawmodelactions) (err error) {
 
 func (mdl *RawModel) selects(data rawmodelactions, model interface{}) (err error) {
 	selectcheck := func(selects []string, model interface{}) error {
-		var userFields = mdl.getFields(model)
+		userFields := utils.Bufpool.Get().(*bytes.Buffer)
+		userFields.Reset()
+		defer utils.Bufpool.Put(userFields)
+		mdl.getFields(userFields, model)
 		for _, Select := range selects {
 			if !mdl.stringInSlice(userFields, Select) {
 				return errors.New(Select + " field not found")
@@ -288,20 +297,16 @@ func (mdl *RawModel) selects(data rawmodelactions, model interface{}) (err error
 	return
 }
 
-func (mdl *RawModel) getFields(Interfacefield interface{}) []string {
-	var field []string
+func (mdl *RawModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) {
 	v := reflect.ValueOf(Interfacefield)
 	for i := 0; i < v.Type().NumField(); i++ {
-		field = append(field, v.Type().Field(i).Tag.Get("json"))
-	}
-	return field
-}
-
-func (mdl *RawModel) stringInSlice(strSlice []string, s string) bool {
-	for _, v := range strSlice {
-		if v == s {
-			return true
+		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
+		if i+1 < v.Type().NumField() {
+			buffer.WriteByte('.')
 		}
 	}
-	return false
+}
+
+func (mdl *RawModel) stringInSlice(bufferfield *bytes.Buffer, s string) bool {
+	return bytes.Contains(bufferfield.Bytes(), []byte(s))
 }
