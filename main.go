@@ -26,7 +26,7 @@ func Rawmodel(repocfg repository.Repository) {
 	mts := parser.NewRawModel(repocfg)
 	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
 
-	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
+	op, err := mts.Query(operatorJSON, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -43,7 +43,7 @@ func Mongomodel(repocfg repository.Repository) {
 	mts := parser.NewMongoModel(repoCfg)
 	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
 
-	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
+	op, err := mts.Query(operatorJSON, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}

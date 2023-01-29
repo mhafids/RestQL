@@ -39,7 +39,7 @@ func Rawmodel(repocfg repository.Repository) {
 	json.Unmarshal([]byte(operatorJSON), &operatorMap)
 	operatorJSON = ""
 
-	op, err := mts.QueryOne(operatorMap, Rawmodels{})
+	op, err := mts.Query(operatorMap, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -87,7 +87,7 @@ func Mongomodel(repocfg repository.Repository) {
 	json.Unmarshal([]byte(operatorJSON), &operatorMap)
 	operatorJSON = ""
 
-	op, err := mts.QueryOne(operatorMap, Rawmodels{})
+	op, err := mts.Query(operatorMap, Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}

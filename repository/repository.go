@@ -8,23 +8,6 @@ type IORM struct {
 	Select []string
 }
 
-type IFilter struct {
-	Operator string      `json:"op"`
-	Field    string      `json:"field"`
-	Items    []IFilter   `json:"items"`
-	Value    interface{} `json:"value"`
-}
-
-type IFilterProcessed struct {
-	Field  string
-	Values []interface{}
-}
-
-type ISortBy struct {
-	Field string
-	Sort  string
-}
-
 type Repository interface {
 	QueryRepository
 
@@ -35,7 +18,7 @@ type OutputRepository interface {
 	ToORM() (orm IORM, err error)
 }
 
-// QueryRepository is Interface for Query
+// QueryRepository is Interface for QueryBatch
 type QueryRepository interface {
 	Filter(data IFilter, model interface{}) (err error)
 	Limit(data int) (err error)
@@ -51,4 +34,3 @@ type CommandRepository interface {
 	// SortBy(data []ISortBy, model interface{}) (err error)
 	// Select(data []string, model interface{}) (err error)
 }
-

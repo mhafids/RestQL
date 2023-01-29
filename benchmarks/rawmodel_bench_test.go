@@ -17,7 +17,7 @@ func BenchmarkRawModelQueryOne(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			op, err := mts.QueryOne(operatorJSON, Rawmodels{})
+			op, err := mts.Query(operatorJSON, Rawmodels{})
 			if err != nil {
 				b.Error(err)
 			}
@@ -44,7 +44,7 @@ func BenchmarkRawModelBenchQuery(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			op, err := mts.Query(operatorJSON, models)
+			op, err := mts.QueryBatch(operatorJSON, models)
 			if err != nil {
 				b.Error(err)
 			}

@@ -1,19 +1,21 @@
 package constants
 
-const (
-	AND string = "$and"
-	OR  string = "$or"
-	NOT string = "$not"
-	NOR string = "$nor"
+type Operator string
 
-	EQ    string = "$eq"
-	NE    string = "$ne"
-	LIKE  string = "$like"
-	ILIKE string = "$ilike"
-	GT    string = "$gt"
-	GTE   string = "$gte"
-	LT    string = "$lt"
-	LTE   string = "$lte"
-	NIN   string = "$nin"
-	IN    string = "$in"
+const (
+	AND Operator = "$and"
+	OR  Operator = "$or"
+	NOT Operator = "$not"
+	NOR Operator = "$nor"
+
+	EQ    Operator = "$eq"
+	NE    Operator = "$ne"
+	LIKE  Operator = "$like"
+	ILIKE Operator = "$ilike"
+	GT    Operator = "$gt"
+	GTE   Operator = "$gte"
+	LT    Operator = "$lt"
+	LTE   Operator = "$lte"
+	NIN   Operator = "$nin"
+	IN    Operator = "$in"
 )

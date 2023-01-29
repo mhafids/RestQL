@@ -21,7 +21,7 @@ type mongomodelactions struct {
 	Update interface{} `json:"update"`
 	Delete interface{} `json:"delete"`
 
-	// Query
+	// QueryBatch
 	Find   map[string]interface{} `json:"find"`
 	Filter map[string]interface{} `json:"filter"`
 	Where  map[string]interface{} `json:"where"`
@@ -48,12 +48,17 @@ func NewMongoModel(repo repository.Repository) Parser {
 	}
 }
 
-func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mts *MongoModel) CommandBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 
 	return
 }
 
-func (mts *MongoModel) Query(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error){
+
+	return
+}
+
+func (mts *MongoModel) QueryBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	var datamodel map[string]mongomodelactions
 	err = json.Unmarshal([]byte(data), &datamodel)
 	if err != nil {
@@ -103,7 +108,7 @@ func (mts *MongoModel) Query(data string, model map[string]interface{}) (repo ma
 	return
 }
 
-func (mts *MongoModel) QueryOne(data string, model interface{}) (repo repository.Repository, err error) {
+func (mts *MongoModel) Query(data string, model interface{}) (repo repository.Repository, err error) {
 	var datamodel mongomodelactions
 	err = json.Unmarshal([]byte(data), &datamodel)
 	if err != nil {
@@ -314,7 +319,7 @@ func (mts *MongoModel) parser(param paramMongoTranslate) (filtering repository.I
 
 	case reflect.Map:
 		for key, value := range data.(map[string]interface{}) {
-			switch key {
+			switch constants.Operator(strings.ToLower(key)) {
 			case constants.AND:
 				items, errl := mts.loopmap(paramMongoTranslate{data: value})
 				if errl != nil {
@@ -439,7 +444,7 @@ func (mts *MongoModel) loopmap(param paramMongoTranslate) (filtering []repositor
 }
 
 func (mts *MongoModel) operatorcase(key string, upperkey string, value interface{}) (filtering repository.IFilter, err error) {
-	switch strings.ToLower(key) {
+	switch constants.Operator(strings.ToLower(key)) {
 	case constants.GT:
 		filtering = repository.IFilter{
 			Operator: constants.GT,

@@ -1,28 +1,26 @@
 package parser
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/mhafids/RestQL/repository"
 )
 
 type RawModel struct {
-	repo    repository.Repository
-	bufpool sync.Pool
+	repo repository.Repository
 }
 
 type rawmodelactions struct {
 	// Command
-	Insert interface{} `json:"insert"`
-	Update interface{} `json:"update"`
-	Delete interface{} `json:"delete"`
+	Insert repository.Insert `json:"insert"`
+	Create repository.Insert `json:"create"`
+	Update repository.Update `json:"update"`
+	Delete repository.Delete `json:"delete"`
 
-	// Query
+	// QueryBatch
 	Find   repository.IFilter `json:"find"`
 	Filter repository.IFilter `json:"filter"`
 	Where  repository.IFilter `json:"where"`
@@ -43,89 +41,74 @@ type rawmodelactions struct {
 func NewRawModel(repo repository.Repository) Parser {
 	return &RawModel{
 		repo: repo,
-		bufpool: sync.Pool{
-			New: func() interface{} { return new(bytes.Buffer) },
-		},
 	}
 }
 
 // Command for raw command to parser
-func (mdl *RawModel) Command(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mdl *RawModel) CommandBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	var datamodel map[string]rawmodelactions
 	json.Unmarshal([]byte(data), &datamodel)
 	data = ""
 
-
-	for _, value := range datamodel {
-		if value.Insert != nil {
-
-		}
-		if value.Delete != nil {
-
-		}
-		if value.Update != nil {
-
+	for key, value := range datamodel {
+		repo[key], err = mdl.command(value, model[key])
+		if err != nil {
+			return
 		}
 	}
 	return
 }
 
-// Query for multiple raw query to parser
-func (mdl *RawModel) Query(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mdl *RawModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error) {
 
+	return
+}
+
+func (mdl *RawModel) command(datamodel rawmodelactions, model interface{}) (repo repository.Repository, err error) {
+	if len(datamodel.Insert.Datas) > 0 {
+
+	}
+	if datamodel.Delete.Find.Operator != "" || datamodel.Delete.Filter.Operator != "" || datamodel.Delete.Where.Operator != "" {
+
+	}
+	if datamodel.Update.Find.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Filter.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Where.Operator != "" && len(datamodel.Update.Datas) > 0 {
+
+	}
+	return
+}
+
+// QueryBatch for multiple raw query to parser
+func (mdl *RawModel) QueryBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	var datamodel map[string]rawmodelactions
 	json.Unmarshal([]byte(data), &datamodel)
 	data = ""
 
 	repo = make(map[string]repository.Repository, 0)
 	for key, value := range datamodel {
-		if value.Find.Operator != "" || value.Filter.Operator != "" || value.Where.Operator != "" {
-			err = mdl.filter(value, model[key])
-			if err != nil {
-				return
-			}
+		repo[key], err = mdl.query(value, model[key])
+		if err != nil {
+			return
 		}
-
-		if value.Orderby != "" || value.Sort != "" || value.Sortby != "" {
-			err = mdl.sortby(value, model[key])
-			if err != nil {
-				return
-			}
-		}
-
-		if value.Limit > 0 {
-			err = mdl.limit(value)
-			if err != nil {
-				return
-			}
-		}
-
-		if value.Offset > 0 || value.Skip > 0 {
-			err = mdl.offset(value)
-			if err != nil {
-				return
-			}
-		}
-
-		if len(value.Select) > 0 {
-			err = mdl.selects(value, model[key])
-			if err != nil {
-				return
-			}
-		}
-
-		repo[key] = mdl.repo
 	}
 
 	return
 }
 
-// QueryOne for single raw parser to Repository ORM
-func (mdl *RawModel) QueryOne(data string, model interface{}) (repo repository.Repository, err error) {
+// Query for single raw parser to Repository ORM
+func (mdl *RawModel) Query(data string, model interface{}) (repo repository.Repository, err error) {
 	var datamodel rawmodelactions
 	json.Unmarshal([]byte(data), &datamodel)
 	data = ""
 
+	repo, err = mdl.query(datamodel, model)
+
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (mdl *RawModel) query(datamodel rawmodelactions, model interface{}) (repo repository.Repository, err error) {
 	if datamodel.Find.Operator != "" || datamodel.Filter.Operator != "" || datamodel.Where.Operator != "" {
 		err = mdl.filter(datamodel, model)
 		if err != nil {
@@ -174,6 +157,8 @@ func (mdl *RawModel) ToORM() (orm repository.IORM, err error) {
 	}
 	return
 }
+
+/* Query */
 
 func (mdl *RawModel) filter(data rawmodelactions, model interface{}) (err error) {
 	Filter := data.Filter
@@ -319,27 +304,4 @@ func (mdl *RawModel) stringInSlice(strSlice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-// func (mdl *RawModel) transcode(in, out interface{}) {
-
-// 	buf := mdl.bufpool.Get().(*bytes.Buffer)
-// 	json.NewEncoder(buf).Encode(in)
-// 	json.NewDecoder(buf).Decode(out)
-// 	buf.Reset()
-// 	mdl.bufpool.Put(buf)
-// 	in = nil
-// }
-
-func (mdl *RawModel) transcode(in map[string]interface{}, out *repository.IFilter) (err error) {
-	data, err := json.Marshal(in)
-	if err != nil {
-		return
-	}
-
-	err = json.Unmarshal(data, out)
-	if err != nil {
-		return
-	}
-	return
 }

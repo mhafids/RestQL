@@ -12,7 +12,7 @@ func TestMongoModelQueryOne(t *testing.T) {
 	mts := parser.NewMongoModel(repoCfg)
 	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
 
-	op, err := mts.QueryOne(operatorJSON, Rawmodels{})
+	op, err := mts.Query(operatorJSON, Rawmodels{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -32,7 +32,7 @@ func TestMongoModelQuery(t *testing.T) {
 	var models map[string]interface{} = make(map[string]interface{}, 0)
 	models["test"] = Rawmodels{}
 
-	op, err := mts.Query(operatorJSON, models)
+	op, err := mts.QueryBatch(operatorJSON, models)
 	if err != nil {
 		t.Error(err)
 	}

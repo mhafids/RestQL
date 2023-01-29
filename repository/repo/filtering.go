@@ -24,7 +24,7 @@ func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filte
 
 func operatorComparison(filter repository.IFilter, model []string) (fields string, values []interface{}, err error) {
 
-	switch strings.ToLower(filter.Operator) {
+	switch filter.Operator {
 	case constants.EQ:
 		if stringInSlice(model, filter.Field) {
 			values = append(values, filter.Value)
@@ -220,7 +220,7 @@ func operatorComparison(filter repository.IFilter, model []string) (fields strin
 		}
 
 	default:
-		err = errors.New("Operator \"" + filter.Operator + "\" not available")
+		err = errors.New("Operator \"" + string(filter.Operator) + "\" not available")
 		if err != nil {
 			return
 		}
