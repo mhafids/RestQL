@@ -11,7 +11,7 @@ type IFilter struct {
 
 type IFilterProcessed struct {
 	Field  string
-	Values []string
+	Values []any
 }
 
 type ISortBy struct {
