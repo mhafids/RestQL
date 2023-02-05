@@ -14,9 +14,6 @@ func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filte
 	userFields := &bytes.Buffer{}
 	userFields.Reset()
 
-	valuebuffer := &bytes.Buffer{}
-	valuebuffer.Reset()
-
 	fields := utils.Bufpool.Get().(*bytes.Buffer)
 	// fields := new(bytes.Buffer)
 	fields.Reset()
@@ -27,19 +24,11 @@ func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filte
 		return
 	}
 
-	err = query.operatorComparison(filter, valuebuffer, userFields, fields)
+	values, err := query.operatorComparison(filter, userFields, fields)
 	if err != nil {
 		return
 	}
 
-	valuebytes := bytes.Split(valuebuffer.Bytes(), []byte{0x90})
-	values := make([]string, len(valuebytes))
-	for index, valuebyte := range valuebytes {
-		values[index] = string(valuebyte)
-	}
-
-	// values := strings.Split(valuebuffer.String(), "|")
-	values = values[:len(values)-1]
 	filterProcessed = repository.IFilterProcessed{
 		Field:  fields.String(),
 		Values: values,
@@ -47,13 +36,12 @@ func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filte
 	return
 }
 
-func (query *Repo) operatorComparison(filter repository.IFilter, values, model, fields *bytes.Buffer) (err error) {
+func (query *Repo) operatorComparison(filter repository.IFilter, model, fields *bytes.Buffer) (values []any, err error) {
 
 	switch filter.Operator {
 	case constants.EQ:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
+			values = append(values, filter.Value)
 			if err != nil {
 				return
 			}
@@ -68,11 +56,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.NE:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 			// fields += filter.Field + " <> ?"
 			fields.WriteString(filter.Field)
 			fields.WriteString(" <> ?")
@@ -83,13 +67,13 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.LIKE:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteByte('%')
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('%')
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			val := &bytes.Buffer{}
+			val.Reset()
+			val.WriteByte('%')
+			val.WriteString(fmt.Sprintf("%v", filter.Value))
+			val.WriteByte('%')
+			values = append(values, val.String())
+
 			// values = append(values, "%"+fmt.Sprintf("%v", filter.Value)+"%")
 			fields.WriteString(filter.Field)
 			fields.WriteString(" LIKE ?")
@@ -101,13 +85,12 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.ILIKE:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteByte('%')
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('%')
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			val := &bytes.Buffer{}
+			val.Reset()
+			val.WriteByte('%')
+			val.WriteString(fmt.Sprintf("%v", filter.Value))
+			val.WriteByte('%')
+			values = append(values, val.String())
 
 			fields.WriteString("LOWER(")
 			fields.WriteString(filter.Field)
@@ -120,11 +103,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.GT:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" > ?")
@@ -136,11 +115,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.GTE:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" >= ?")
@@ -152,11 +127,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.LT:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" < ?")
@@ -168,11 +139,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.LTE:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" <= ?")
@@ -184,11 +151,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.NIN:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" NOT IN ?")
@@ -200,11 +163,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 
 	case constants.IN:
 		if query.stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			err = values.WriteByte(0x90)
-			if err != nil {
-				return
-			}
+			values = append(values, filter.Value)
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" IN ?")
@@ -225,7 +184,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				// field.Reset()
 				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := query.operatorComparison(item, values, model, field)
+				val, errl := query.operatorComparison(item, model, field)
 
 				if errl != nil {
 					err = errl
@@ -243,6 +202,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				fieldsNAND.Write(field.Bytes())
 				saves++
 				utils.Bufpool.Put(field)
+				values = append(values, val...)
 			}
 
 			if err != nil {
@@ -269,7 +229,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				// field.Reset()
 				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := query.operatorComparison(item, values, model, field)
+				val, errl := query.operatorComparison(item, model, field)
 
 				if errl != nil {
 					err = errl
@@ -288,6 +248,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				saves++
 				utils.Bufpool.Put(field)
 				// fieldsNOR = append(fieldsNOR, field.String())
+				values = append(values, val...)
 			}
 
 			if err != nil {
@@ -318,7 +279,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				// var field = &bytes.Buffer{}
 				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := query.operatorComparison(item, values, model, field)
+				val, errl := query.operatorComparison(item, model, field)
 
 				if errl != nil {
 					err = errl
@@ -337,6 +298,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				saves++
 				utils.Bufpool.Put(field)
 				// fieldsAND = append(fieldsAND, field.String())
+				values = append(values, val...)
 			}
 
 			if err != nil {
@@ -364,7 +326,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				// field.Reset()
 				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := query.operatorComparison(item, values, model, field)
+				val, errl := query.operatorComparison(item, model, field)
 
 				if errl != nil {
 					err = errl
@@ -382,6 +344,7 @@ func (query *Repo) operatorComparison(filter repository.IFilter, values, model, 
 				saves++
 				utils.Bufpool.Put(field)
 				// fieldsOR = append(fieldsOR, field.String())
+				values = append(values, val...)
 			}
 
 			if err != nil {
