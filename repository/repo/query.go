@@ -1,28 +1,14 @@
 package repo
 
 import (
-	"encoding/json"
+	"bytes"
+	"errors"
+	"reflect"
 	"strings"
 
+	"github.com/mhafids/RestQL/exception"
 	"github.com/mhafids/RestQL/repository"
 )
-
-type Repo struct {
-	Setting *RepoConfig
-
-	// Filter processed
-	data repository.IORM
-}
-
-type RepoConfig struct {
-}
-
-func NewRepo(config *RepoConfig) repository.Repository {
-	return &Repo{
-		Setting: config,
-		data:    repository.IORM{},
-	}
-}
 
 func (query *Repo) Filter(data repository.IFilter, model interface{}) (err error) {
 	filtered, err := query.filterDB(data, model)
@@ -56,6 +42,21 @@ func (query *Repo) SortBy(sorts []repository.ISortBy, model interface{}) (err er
 }
 
 func (query *Repo) Select(data []string, model interface{}) (err error) {
+	buffer := &bytes.Buffer{}
+	buffer.Reset()
+
+	err = query.getFields(buffer, model)
+	if err != nil {
+		return err
+	}
+
+	for _, dt := range data {
+		if !query.stringInSlice(buffer, dt) {
+			err = errors.New(dt + exception.FieldUnknown)
+			return
+		}
+	}
+
 	query.data.Select = data
 	return
 }
@@ -65,16 +66,20 @@ func (query *Repo) ToORM() (orm repository.IORM, err error) {
 	return
 }
 
-func convertMapToStruct(datamap interface{}, marshal interface{}) (err error) {
-	// convert map to json
-	jsonString, err := json.Marshal(datamap)
-	if err != nil {
-		return
+func (query *Repo) getFields(buffer *bytes.Buffer, Interfacefield interface{}) error {
+	v := reflect.ValueOf(Interfacefield)
+	for i := 0; i < v.Type().NumField(); i++ {
+		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
+		if i+1 < v.Type().NumField() {
+			err := buffer.WriteByte(0b10101010)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	// convert json to struct
-	err = json.Unmarshal(jsonString, marshal)
-	if err != nil {
-		return
-	}
-	return
+	return nil
+}
+
+func (query *Repo) stringInSlice(bufferfield *bytes.Buffer, s string) bool {
+	return bytes.Contains(bufferfield.Bytes(), []byte(s))
 }

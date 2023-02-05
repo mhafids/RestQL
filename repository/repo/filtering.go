@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/mhafids/RestQL/constants"
 	"github.com/mhafids/RestQL/repository"
@@ -13,25 +11,34 @@ import (
 )
 
 func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filterProcessed repository.IFilterProcessed, err error) {
-	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields := &bytes.Buffer{}
 	userFields.Reset()
-	defer utils.Bufpool.Put(userFields)
 
-	valuebuffer := utils.Bufpool.Get().(*bytes.Buffer)
+	valuebuffer := &bytes.Buffer{}
 	valuebuffer.Reset()
-	defer utils.Bufpool.Put(valuebuffer)
 
 	fields := utils.Bufpool.Get().(*bytes.Buffer)
+	// fields := new(bytes.Buffer)
 	fields.Reset()
 	defer utils.Bufpool.Put(fields)
 
-	getFields(userFields, model)
-	err = operatorComparison(filter, valuebuffer, userFields, fields)
+	err = query.getFields(userFields, model)
 	if err != nil {
 		return
 	}
 
-	values := strings.Split(valuebuffer.String(), ".")
+	err = query.operatorComparison(filter, valuebuffer, userFields, fields)
+	if err != nil {
+		return
+	}
+
+	valuebytes := bytes.Split(valuebuffer.Bytes(), []byte{0x90})
+	values := make([]string, len(valuebytes))
+	for index, valuebyte := range valuebytes {
+		values[index] = string(valuebyte)
+	}
+
+	// values := strings.Split(valuebuffer.String(), "|")
 	values = values[:len(values)-1]
 	filterProcessed = repository.IFilterProcessed{
 		Field:  fields.String(),
@@ -40,13 +47,16 @@ func (query *Repo) filterDB(filter repository.IFilter, model interface{}) (filte
 	return
 }
 
-func operatorComparison(filter repository.IFilter, values, model, fields *bytes.Buffer) (err error) {
+func (query *Repo) operatorComparison(filter repository.IFilter, values, model, fields *bytes.Buffer) (err error) {
 
 	switch filter.Operator {
 	case constants.EQ:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 			// values = append(values, filter.Value)
 			fields.WriteString(filter.Field)
 			fields.WriteString(" = ?")
@@ -57,9 +67,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.NE:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 			// fields += filter.Field + " <> ?"
 			fields.WriteString(filter.Field)
 			fields.WriteString(" <> ?")
@@ -69,10 +82,15 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.LIKE:
-		if stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", "%"+filter.Value.(string)+"%"))
-			values.WriteByte('.')
-			// values = append(values, "%"+filter.Value.(string)+"%")
+		if query.stringInSlice(model, filter.Field) {
+			values.WriteByte('%')
+			values.WriteString(fmt.Sprintf("%v", filter.Value))
+			values.WriteByte('%')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
+			// values = append(values, "%"+fmt.Sprintf("%v", filter.Value)+"%")
 			fields.WriteString(filter.Field)
 			fields.WriteString(" LIKE ?")
 			// fields += filter.Field + " LIKE ?"
@@ -82,9 +100,14 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.ILIKE:
-		if stringInSlice(model, filter.Field) {
-			values.WriteString(fmt.Sprintf("%v", "%"+filter.Value.(string)+"%"))
-			values.WriteByte('.')
+		if query.stringInSlice(model, filter.Field) {
+			values.WriteByte('%')
+			values.WriteString(fmt.Sprintf("%v", filter.Value))
+			values.WriteByte('%')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString("LOWER(")
 			fields.WriteString(filter.Field)
@@ -96,9 +119,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.GT:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" > ?")
@@ -109,9 +135,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.GTE:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" >= ?")
@@ -122,9 +151,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.LT:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" < ?")
@@ -135,9 +167,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.LTE:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" <= ?")
@@ -148,9 +183,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.NIN:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" NOT IN ?")
@@ -161,9 +199,12 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 		}
 
 	case constants.IN:
-		if stringInSlice(model, filter.Field) {
+		if query.stringInSlice(model, filter.Field) {
 			values.WriteString(fmt.Sprintf("%v", filter.Value))
-			values.WriteByte('.')
+			err = values.WriteByte(0x90)
+			if err != nil {
+				return
+			}
 
 			fields.WriteString(filter.Field)
 			fields.WriteString(" IN ?")
@@ -175,80 +216,116 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 
 	case constants.NOT:
 		if len(filter.Items) > 0 {
-			var fieldsNAND []string
+			// var fieldsNAND []string
+			var fieldsNAND = &bytes.Buffer{}
+			fieldsNAND.Reset()
+			var saves = 0
 			for _, item := range filter.Items {
-				field := &bytes.Buffer{}
+				// var field = &bytes.Buffer{}
+				// field.Reset()
+				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := operatorComparison(item, values, model, field)
+				errl := query.operatorComparison(item, values, model, field)
 
 				if errl != nil {
 					err = errl
 					break
 				}
 
-				if field.Len() > 0 {
+				if field.Len() == 0 {
 					continue
 				}
 
-				fieldsNAND = append(fieldsNAND, field.String())
+				if saves > 0 {
+					fieldsNAND.WriteString(" AND NOT ")
+				}
+
+				fieldsNAND.Write(field.Bytes())
+				saves++
+				utils.Bufpool.Put(field)
 			}
 
 			if err != nil {
 				return
 			}
 
-			if len(fieldsNAND) > 0 {
-				fields.WriteString("( NOT " + strings.Join(fieldsNAND, " AND NOT ") + ")")
-			} else if len(fieldsNAND) > 0 {
-				fields.WriteString(fieldsNAND[0])
+			if saves > 1 {
+				fields.WriteByte('(')
+				fields.Write(fieldsNAND.Bytes())
+				fields.WriteByte(')')
+			} else if saves > 0 {
+				fields.Write(fieldsNAND.Bytes())
 			}
 		}
 
 	case constants.NOR:
 		if len(filter.Items) > 0 {
-			var fieldsNOR []string
+			// var fieldsNOR []string
+			var fieldsNOR = &bytes.Buffer{}
+			fieldsNOR.Reset()
+			var saves = 0
 			for _, item := range filter.Items {
-				field := &bytes.Buffer{}
+				// var field = &bytes.Buffer{}
+				// field.Reset()
+				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := operatorComparison(item, values, model, field)
+				errl := query.operatorComparison(item, values, model, field)
 
 				if errl != nil {
 					err = errl
 					break
 				}
 
-				if field.Len() > 0 {
+				if field.Len() == 0 {
 					continue
 				}
-				fieldsNOR = append(fieldsNOR, field.String())
+
+				if saves > 0 {
+					fieldsNOR.WriteString(" OR NOT ")
+				}
+
+				fieldsNOR.Write(field.Bytes())
+				saves++
+				utils.Bufpool.Put(field)
+				// fieldsNOR = append(fieldsNOR, field.String())
 			}
 
 			if err != nil {
 				return
 			}
 
-			if len(fieldsNOR) > 0 {
-				fields.WriteString("( NOT " + strings.Join(fieldsNOR, " OR NOT ") + ")")
-			} else if len(fieldsNOR) > 0 {
-				fields.WriteString(fieldsNOR[0])
+			if saves > 1 {
+				fields.WriteByte('(')
+				fields.Write(fieldsNOR.Bytes())
+				fields.WriteByte(')')
+			} else if saves > 0 {
+				fields.Write(fieldsNOR.Bytes())
 			}
+			// if len(fieldsNOR) > 0 {
+			// 	fields.WriteString("( NOT " + strings.Join(fieldsNOR, " OR NOT ") + ")")
+			// } else if len(fieldsNOR) > 0 {
+			// 	fields.WriteString(fieldsNOR[0])
+			// }
 		}
 
 	case constants.AND:
 		if len(filter.Items) > 0 {
 			var fieldsAND = &bytes.Buffer{}
+			fieldsAND.Reset()
+			// var fieldsAND = &bytes.Buffer{}
 			var saves = 0
 			for _, item := range filter.Items {
-				field := &bytes.Buffer{}
+				// var field = &bytes.Buffer{}
+				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := operatorComparison(item, values, model, field)
+				errl := query.operatorComparison(item, values, model, field)
 
 				if errl != nil {
 					err = errl
 					break
 				}
 
-				if field.Len() > 0 {
+				if field.Len() == 0 {
 					continue
 				}
 
@@ -258,6 +335,7 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 
 				fieldsAND.Write(field.Bytes())
 				saves++
+				utils.Bufpool.Put(field)
 				// fieldsAND = append(fieldsAND, field.String())
 			}
 
@@ -276,30 +354,46 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 
 	case constants.OR:
 		if len(filter.Items) > 0 {
-			var fieldsOR []string
+			// var fieldsOR []string
+			var fieldsOR = &bytes.Buffer{}
+			fieldsOR.Reset()
+
+			var saves = 0
 			for _, item := range filter.Items {
-				field := &bytes.Buffer{}
+				// var field = &bytes.Buffer{}
+				// field.Reset()
+				field := utils.Bufpool.Get().(*bytes.Buffer)
 				field.Reset()
-				errl := operatorComparison(item, values, model, field)
+				errl := query.operatorComparison(item, values, model, field)
 
 				if errl != nil {
 					err = errl
 					break
 				}
-				if field.Len() > 0 {
+				if field.Len() == 0 {
 					continue
 				}
-				fieldsOR = append(fieldsOR, field.String())
+
+				if saves > 0 {
+					fieldsOR.WriteString(" OR ")
+				}
+
+				fieldsOR.Write(field.Bytes())
+				saves++
+				utils.Bufpool.Put(field)
+				// fieldsOR = append(fieldsOR, field.String())
 			}
 
 			if err != nil {
 				return
 			}
 
-			if len(fieldsOR) > 0 {
-				fields.WriteString("(" + strings.Join(fieldsOR, " OR ") + ")")
-			} else if len(fieldsOR) > 0 {
-				fields.WriteString(fieldsOR[0])
+			if saves > 1 {
+				fields.WriteByte('(')
+				fields.Write(fieldsOR.Bytes())
+				fields.WriteByte(')')
+			} else if saves > 0 {
+				fields.Write(fieldsOR.Bytes())
 			}
 		}
 
@@ -312,14 +406,4 @@ func operatorComparison(filter repository.IFilter, values, model, fields *bytes.
 
 	// fmt.Println(strings.ToLower(filter.Operator), fields)
 	return
-}
-
-func getFields(buffer *bytes.Buffer, Interfacefield interface{}) {
-	v := reflect.ValueOf(Interfacefield)
-	for i := 0; i < v.Type().NumField(); i++ {
-		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
-		if i+1 < v.Type().NumField() {
-			buffer.WriteByte('.')
-		}
-	}
 }

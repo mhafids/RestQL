@@ -1,6 +1,9 @@
 package repository
 
 type IORM struct {
+	Insert map[string]interface{}
+	Update map[string]interface{}
+
 	SortBy string
 	Filter IFilterProcessed
 	Limit  int
@@ -10,6 +13,7 @@ type IORM struct {
 
 type Repository interface {
 	QueryRepository
+	CommandRepository
 
 	OutputRepository
 }
@@ -28,9 +32,7 @@ type QueryRepository interface {
 }
 
 type CommandRepository interface {
-	// Filter(data IFilter, model interface{}) (err error)
-	// Limit(data int64) (err error)
-	// Offset(data int64) (err error)
-	// SortBy(data []ISortBy, model interface{}) (err error)
-	// Select(data []string, model interface{}) (err error)
+	Insert(data Insert, model interface{}) (err error)
+	Update(data Update, model interface{}) (err error)
+	Delete(data Delete, model interface{}) (err error)
 }

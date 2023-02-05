@@ -3,18 +3,18 @@ package repo
 import (
 	"bytes"
 	"errors"
-
-	"github.com/mhafids/RestQL/utils"
 )
 
 func (query *Repo) selectFilterCheck(selects []string, model interface{}) error {
-	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields := &bytes.Buffer{}
 	userFields.Reset()
-	defer utils.Bufpool.Put(userFields)
 
-	getFields(userFields, model)
+	err := query.getFields(userFields, model)
+	if err != nil {
+		return err
+	}
 	for _, Select := range selects {
-		if !stringInSlice(userFields, Select) {
+		if !query.stringInSlice(userFields, Select) {
 			return errors.New(Select + " field not found")
 		}
 	}

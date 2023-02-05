@@ -8,31 +8,25 @@ import (
 )
 
 func BenchmarkMongoModelQueryOne(b *testing.B) {
-	repoCfg := repo.NewRepo(&repo.RepoConfig{})
+	repoCfg := repo.NewRepo(repo.RepoConfig{})
 	mts := parser.NewMongoModel(repoCfg)
 	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	op, err := mts.Query([]byte(operatorJSON), Rawmodels{})
+	if err != nil {
+		b.Error(err)
+	}
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			op, err := mts.Query(operatorJSON, Rawmodels{})
-			if err != nil {
-				b.Error(err)
-			}
+	_, err = op.ToORM()
+	if err != nil {
+		b.Error(err)
+	}
+	// b.Log(orm)
 
-			_, err = op.ToORM()
-			if err != nil {
-				b.Error(err)
-			}
-			// b.Log(orm)
-		}
-	})
 }
 
 func BenchmarkMongoModelBenchQuery(b *testing.B) {
-	repoCfg := repo.NewRepo(&repo.RepoConfig{})
+	repoCfg := repo.NewRepo(repo.RepoConfig{})
 	mts := parser.NewMongoModel(repoCfg)
 	var operatorJSON string = `{"test":{"find":{"phone":{"$not":{"$gt":"25"}}}}}`
 
@@ -44,7 +38,7 @@ func BenchmarkMongoModelBenchQuery(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			op, err := mts.QueryBatch(operatorJSON, models)
+			op, err := mts.QueryBatch([]byte(operatorJSON), models)
 			if err != nil {
 				b.Error(err)
 			}

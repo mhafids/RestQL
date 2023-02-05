@@ -2,14 +2,15 @@ package parser
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
 
+	"github.com/goccy/go-json"
+
 	"github.com/mhafids/RestQL/constants"
+	"github.com/mhafids/RestQL/exception"
 	"github.com/mhafids/RestQL/repository"
-	"github.com/mhafids/RestQL/utils"
 )
 
 type paramMongoTranslate struct {
@@ -50,23 +51,23 @@ func NewMongoModel(repo repository.Repository) Parser {
 	}
 }
 
-func (mts *MongoModel) CommandBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+// func (mts *MongoModel) CommandBatch(data []byte, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 
-	return
-}
+// 	return
+// }
 
-func (mts *MongoModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error) {
+// func (mts *MongoModel) Command(data []byte, model interface{}) (repo repository.Repository, err error) {
 
-	return
-}
+// 	return
+// }
 
-func (mts *MongoModel) QueryBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mts *MongoModel) QueryBatch(data []byte, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	var datamodel map[string]mongomodelactions
-	err = json.Unmarshal([]byte(data), &datamodel)
+	err = json.Unmarshal(data, &datamodel)
 	if err != nil {
 		return
 	}
-	data = ""
+	data = nil
 
 	repo = map[string]repository.Repository{}
 	for key, value := range datamodel {
@@ -110,13 +111,13 @@ func (mts *MongoModel) QueryBatch(data string, model map[string]interface{}) (re
 	return
 }
 
-func (mts *MongoModel) Query(data string, model interface{}) (repo repository.Repository, err error) {
+func (mts *MongoModel) Query(data []byte, model interface{}) (repo repository.Repository, err error) {
 	var datamodel mongomodelactions
-	err = json.Unmarshal([]byte(data), &datamodel)
+	err = json.Unmarshal(data, &datamodel)
 	if err != nil {
 		return
 	}
-	data = ""
+	data = nil
 
 	if datamodel.Find != nil || datamodel.Filter != nil || datamodel.Where != nil {
 		err = mts.filter(datamodel, model)
@@ -199,11 +200,13 @@ func (mts *MongoModel) sortby(data mongomodelactions, model interface{}) (err er
 		sortBy = "id asc"
 	}
 
-	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields := &bytes.Buffer{}
 	userFields.Reset()
-	defer utils.Bufpool.Put(userFields)
 
-	mts.getFields(userFields, model)
+	err = mts.getFields(userFields, model)
+	if err != nil {
+		return
+	}
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []repository.ISortBy
@@ -217,12 +220,12 @@ func (mts *MongoModel) sortby(data mongomodelactions, model interface{}) (err er
 		order = strings.ToLower(order)
 
 		if order != "desc" && order != "asc" {
-			err = errors.New("malformed order direction in sortBy query parameter, should be asc or desc")
+			err = errors.New(exception.Orderby)
 			return
 		}
 
 		if !mts.stringInSlice(userFields, field) && field != "id" {
-			err = errors.New("unknown field in sortBy query parameter")
+			err = errors.New(exception.OrderbyUnknown)
 			return
 		}
 
@@ -273,11 +276,14 @@ func (mts *MongoModel) offset(data mongomodelactions) (err error) {
 
 func (mts *MongoModel) selects(data mongomodelactions, model interface{}) (err error) {
 	selectcheck := func(selects []string, model interface{}) error {
-		userFields := utils.Bufpool.Get().(*bytes.Buffer)
+		userFields := &bytes.Buffer{}
 		userFields.Reset()
-		defer utils.Bufpool.Put(userFields)
 
-		mts.getFields(userFields, model)
+		err = mts.getFields(userFields, model)
+		if err != nil {
+			return err
+		}
+
 		for _, Select := range selects {
 			if !mts.stringInSlice(userFields, Select) {
 				return errors.New(Select + " field not found")
@@ -578,14 +584,19 @@ func (mts *MongoModel) operatorcase(key string, upperkey string, value interface
 	}
 }
 
-func (mts *MongoModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) {
+func (mts *MongoModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) error {
 	v := reflect.ValueOf(Interfacefield)
 	for i := 0; i < v.Type().NumField(); i++ {
 		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
 		if i+1 < v.Type().NumField() {
-			buffer.WriteByte('.')
+			err := buffer.WriteByte(0b10101010)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 func (mts *MongoModel) stringInSlice(bufferfield *bytes.Buffer, s string) bool {

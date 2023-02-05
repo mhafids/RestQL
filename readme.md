@@ -11,7 +11,7 @@ go get -u github.com/mhafids/github.com/mhafids/RestQL
 package main
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"restql/parser"
 	"restql/repository"
@@ -58,7 +58,7 @@ func Rawmodel(repocfg repository.Repository) {
 package main
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"restql/parser"
 	"restql/repository"

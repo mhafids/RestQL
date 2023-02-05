@@ -2,13 +2,13 @@ package parser
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 
+	"github.com/goccy/go-json"
 	"github.com/mhafids/RestQL/repository"
-	"github.com/mhafids/RestQL/utils"
 )
 
 type RawModel struct {
@@ -17,10 +17,11 @@ type RawModel struct {
 
 type rawmodelactions struct {
 	// Command
-	Insert repository.Insert `json:"insert"`
-	Create repository.Insert `json:"create"`
-	Update repository.Update `json:"update"`
-	Delete repository.Delete `json:"delete"`
+	Save   updatemodel `json:"save"`
+	Insert insertmodel `json:"insert"`
+	Create insertmodel `json:"create"`
+	Update updatemodel `json:"update"`
+	Delete deletemodel `json:"delete"`
 
 	// QueryBatch
 	Find   repository.IFilter `json:"find"`
@@ -39,6 +40,50 @@ type rawmodelactions struct {
 	Select []string `json:"select"`
 }
 
+type updatemodel struct {
+	Datas []repository.ICommand `json:"datas"`
+
+	// QueryBatch
+	Find   repository.IFilter `json:"find"`
+	Filter repository.IFilter `json:"filter"`
+	Where  repository.IFilter `json:"where"`
+
+	Sortby  string `json:"sortby"`
+	Sort    string `json:"sort"`
+	Orderby string `json:"orderby"`
+
+	Limit int `json:"limit"`
+
+	Offset int `json:"offset"`
+	Skip   int `json:"skip"`
+
+	// Select []string `json:"select"`
+}
+
+type insertmodel struct {
+	Datas []repository.ICommand `json:"datas"`
+}
+
+type deletemodel struct {
+	Datas []repository.ICommand `json:"datas"`
+
+	// QueryBatch
+	Find   repository.IFilter `json:"find"`
+	Filter repository.IFilter `json:"filter"`
+	Where  repository.IFilter `json:"where"`
+
+	Sortby  string `json:"sortby"`
+	Sort    string `json:"sort"`
+	Orderby string `json:"orderby"`
+
+	Limit int `json:"limit"`
+
+	Offset int `json:"offset"`
+	Skip   int `json:"skip"`
+
+	// Select []string `json:"select"`
+}
+
 // NewRawModel initial new parser Rawmodel
 func NewRawModel(repo repository.Repository) Parser {
 	return &RawModel{
@@ -46,44 +91,63 @@ func NewRawModel(repo repository.Repository) Parser {
 	}
 }
 
-// Command for raw command to parser
-func (mdl *RawModel) CommandBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
-	var datamodel map[string]rawmodelactions
-	json.Unmarshal([]byte(data), &datamodel)
-	data = ""
+// // CommandBatch for batch raw command to parser
+// func (mdl *RawModel) CommandBatch(data []byte, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+// 	var datamodel map[string]rawmodelactions
+// 	json.Unmarshal(data, &datamodel)
+// 	data = nil
 
-	for key, value := range datamodel {
-		repo[key], err = mdl.command(value, model[key])
-		if err != nil {
-			return
-		}
-	}
-	return
-}
+// 	for key, value := range datamodel {
+// 		repo[key], err = mdl.command(value, model[key])
+// 		if err != nil {
+// 			return
+// 		}
+// 	}
+// 	return
+// }
 
-func (mdl *RawModel) Command(data string, model map[string]interface{}) (repo repository.Repository, err error) {
+// // Command for raw command to parser
+// func (mdl *RawModel) Command(data []byte, model interface{}) (repo repository.Repository, err error) {
+// 	var datamodel rawmodelactions
+// 	json.Unmarshal(data, &datamodel)
+// 	data = nil
 
-	return
-}
+// 	repo, err = mdl.command(datamodel, model)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return
+// }
 
-func (mdl *RawModel) command(datamodel rawmodelactions, model interface{}) (repo repository.Repository, err error) {
-	if len(datamodel.Insert.Datas) > 0 {
+// func (mdl *RawModel) command(datamodel rawmodelactions, model interface{}) (repo repository.Repository, err error) {
 
-	}
-	if datamodel.Delete.Find.Operator != "" || datamodel.Delete.Filter.Operator != "" || datamodel.Delete.Where.Operator != "" {
+// 	if datamodel.Save.Find.Operator != "" && len(datamodel.Save.Datas) > 0 || datamodel.Save.Filter.Operator != "" && len(datamodel.Save.Datas) > 0 || datamodel.Save.Where.Operator != "" && len(datamodel.Save.Datas) > 0 {
+// 		// Save Update
 
-	}
-	if datamodel.Update.Find.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Filter.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Where.Operator != "" && len(datamodel.Update.Datas) > 0 {
+// 	} else if len(datamodel.Save.Datas) > 0 {
+// 		// Save Insert
 
-	}
-	return
-}
+// 	}
+
+// 	if len(datamodel.Insert.Datas) > 0 {
+
+// 	}
+
+// 	if datamodel.Delete.Find.Operator != "" || datamodel.Delete.Filter.Operator != "" || datamodel.Delete.Where.Operator != "" {
+
+// 	}
+
+// 	if datamodel.Update.Find.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Filter.Operator != "" && len(datamodel.Update.Datas) > 0 || datamodel.Update.Where.Operator != "" && len(datamodel.Update.Datas) > 0 {
+
+// 	}
+// 	return
+// }
 
 // QueryBatch for multiple raw query to parser
-func (mdl *RawModel) QueryBatch(data string, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
+func (mdl *RawModel) QueryBatch(data []byte, model map[string]interface{}) (repo map[string]repository.Repository, err error) {
 	var datamodel map[string]rawmodelactions
-	json.Unmarshal([]byte(data), &datamodel)
-	data = ""
+	json.Unmarshal(data, &datamodel)
+	data = nil
 
 	repo = make(map[string]repository.Repository, 0)
 	for key, value := range datamodel {
@@ -97,10 +161,9 @@ func (mdl *RawModel) QueryBatch(data string, model map[string]interface{}) (repo
 }
 
 // Query for single raw parser to Repository ORM
-func (mdl *RawModel) Query(data string, model interface{}) (repo repository.Repository, err error) {
+func (mdl *RawModel) Query(data []byte, model interface{}) (repo repository.Repository, err error) {
 	datamodel := rawmodelactions{}
-	json.Unmarshal([]byte(data), &datamodel)
-	data = ""
+	json.Unmarshal(data, &datamodel)
 
 	repo, err = mdl.query(datamodel, model)
 
@@ -161,7 +224,6 @@ func (mdl *RawModel) ToORM() (orm repository.IORM, err error) {
 }
 
 /* Query */
-
 func (mdl *RawModel) filter(data rawmodelactions, model interface{}) (err error) {
 	Filter := data.Filter
 
@@ -198,11 +260,14 @@ func (mdl *RawModel) sortby(data rawmodelactions, model interface{}) (err error)
 		sortBy = "id asc"
 	}
 
-	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+	userFields := &bytes.Buffer{}
 	userFields.Reset()
-	defer utils.Bufpool.Put(userFields)
 
-	mdl.getFields(userFields, model)
+	err = mdl.getFields(userFields, model)
+	if err != nil {
+		return
+	}
+
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []repository.ISortBy
@@ -212,6 +277,7 @@ func (mdl *RawModel) sortby(data rawmodelactions, model interface{}) (err error)
 		if len(splits) != 2 {
 			splits = append(splits, "asc")
 		}
+
 		field, order := splits[0], splits[1]
 		order = strings.ToLower(order)
 
@@ -272,10 +338,14 @@ func (mdl *RawModel) offset(data rawmodelactions) (err error) {
 
 func (mdl *RawModel) selects(data rawmodelactions, model interface{}) (err error) {
 	selectcheck := func(selects []string, model interface{}) error {
-		userFields := utils.Bufpool.Get().(*bytes.Buffer)
+		userFields := &bytes.Buffer{}
 		userFields.Reset()
-		defer utils.Bufpool.Put(userFields)
-		mdl.getFields(userFields, model)
+
+		err = mdl.getFields(userFields, model)
+		if err != nil {
+			return err
+		}
+
 		for _, Select := range selects {
 			if !mdl.stringInSlice(userFields, Select) {
 				return errors.New(Select + " field not found")
@@ -297,16 +367,42 @@ func (mdl *RawModel) selects(data rawmodelactions, model interface{}) (err error
 	return
 }
 
-func (mdl *RawModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) {
+// // Command
+// func (mdl *RawModel) insert(data rawmodelactions, model interface{}) (repo repository.Repository, err error) {
+// 	datainsert := repository.Insert{}
+// 	if len(data.Create.Datas) > 0 {
+// 		datainsert = data.Create
+// 	} else if len(data.Save.Datas) > 0 {
+// 		datainsert = repository.Insert{
+// 			Datas: data.Save.Datas,
+// 		}
+// 	}
+
+// 	return
+// }
+
+func (mdl *RawModel) getFields(buffer *bytes.Buffer, Interfacefield interface{}) error {
 	v := reflect.ValueOf(Interfacefield)
 	for i := 0; i < v.Type().NumField(); i++ {
 		buffer.WriteString(v.Type().Field(i).Tag.Get("json"))
 		if i+1 < v.Type().NumField() {
-			buffer.WriteByte('.')
+			err := buffer.WriteByte(0b10101010)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (mdl *RawModel) stringInSlice(bufferfield *bytes.Buffer, s string) bool {
 	return bytes.Contains(bufferfield.Bytes(), []byte(s))
+}
+
+func (mdl *RawModel) modelpool() sync.Pool {
+	return sync.Pool{
+		New: func() interface{} {
+			return rawmodelactions{}
+		},
+	}
 }

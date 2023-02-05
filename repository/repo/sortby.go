@@ -5,16 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/mhafids/RestQL/utils"
 )
 
-func ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (string, error) {
-	userFields := utils.Bufpool.Get().(*bytes.Buffer)
+func (query *Repo) ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (string, error) {
+	userFields := &bytes.Buffer{}
 	userFields.Reset()
-	defer utils.Bufpool.Put(userFields)
 
-	getFields(userFields, Interfacefield)
+	err := query.getFields(userFields, Interfacefield)
+	if err != nil {
+		return "", err
+	}
 	sortBy = strings.ReplaceAll(sortBy, ", ", ",")
 	commasplit := strings.Split(sortBy, ",")
 	var orderby []string
@@ -31,7 +31,7 @@ func ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (stri
 			return "", errors.New("malformed orderdirection in sortBy query parameter, should be asc or desc")
 		}
 
-		if !stringInSlice(userFields, field) && field != "id" {
+		if !query.stringInSlice(userFields, field) && field != "id" {
 			return "", errors.New("unknown field in sortBy query parameter")
 		}
 
@@ -39,8 +39,4 @@ func ValidateAndReturnSortQuery(sortBy string, Interfacefield interface{}) (stri
 	}
 
 	return strings.Join(orderby, ", "), nil
-}
-
-func stringInSlice(bufferfield *bytes.Buffer, s string) bool {
-	return bytes.Contains(bufferfield.Bytes(), []byte(s))
 }

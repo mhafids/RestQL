@@ -12,50 +12,40 @@ func BenchmarkRawModelQueryOne(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			repoCfg := repo.NewRepo(&repo.RepoConfig{})
-			mts := parser.NewRawModel(repoCfg)
-			var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
-			op, err := mts.Query(operatorJSON, Rawmodels{})
-			if err != nil {
-				b.Error(err)
-			}
+	repoCfg := repo.NewRepo(repo.RepoConfig{})
+	mts := parser.NewRawModel(repoCfg)
+	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
+	op, err := mts.Query([]byte(operatorJSON), Rawmodels{})
+	if err != nil {
+		b.Error(err)
+	}
 
-			_, err = op.ToORM()
-			if err != nil {
-				b.Error(err)
-			}
-			// b.Log(orm)
-		}
-	})
+	_, err = op.ToORM()
+	if err != nil {
+		b.Error(err)
+	}
+	// b.Log(orm)
 }
 
 func BenchmarkRawModelBenchQuery(b *testing.B) {
-	repoCfg := repo.NewRepo(&repo.RepoConfig{})
+	repoCfg := repo.NewRepo(repo.RepoConfig{})
 	mts := parser.NewRawModel(repoCfg)
 	var operatorJSON string = `{"test":{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}}`
 
 	var models map[string]interface{} = make(map[string]interface{}, 0)
 	models["test"] = Rawmodels{}
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	op, err := mts.QueryBatch([]byte(operatorJSON), models)
+	if err != nil {
+		b.Error(err)
+	}
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			op, err := mts.QueryBatch(operatorJSON, models)
-			if err != nil {
-				b.Error(err)
-			}
-
-			for _, v := range op {
-				_, err := v.ToORM()
-				if err != nil {
-					b.Error(err)
-				}
-				// b.Log(k, orm)
-			}
+	for _, v := range op {
+		_, err := v.ToORM()
+		if err != nil {
+			b.Error(err)
 		}
-	})
+		// b.Log(k, orm)
+	}
+
 }

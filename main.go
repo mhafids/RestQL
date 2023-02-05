@@ -14,43 +14,46 @@ type Rawmodels struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Phone     string `json:"phone"`
+	Last      int    `json:"last"`
+	Oke       bool   `json:"oke"`
 }
 
 func main() {
-	repocfg := repo.NewRepo(&repo.RepoConfig{})
-	Rawmodel(repocfg)
-	Mongomodel(repocfg)
-}
-
-func Rawmodel(repocfg repository.Repository) {
+	repocfg := repo.NewRepo(repo.RepoConfig{})
+	var op repository.Repository
+	var err error
 	mts := parser.NewRawModel(repocfg)
-	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
-
-	op, err := mts.Query(operatorJSON, Rawmodels{})
+	var operatorJSON string = `{"find":{"op":"$and","items":[{"op":"$eq","field":"last","value":501},{"op":"$eq","field":"oke","value":true},{"op":"$eq","field":"first_name","value":"Jawa Barat"},{"op":"$eq","field":"first_name","value":"Jawa Tengah"},{"op":"$eq","field":"first_name","value":"Banten"},{"op":"$eq","field":"first_name","value":"Yogyakarta"},{"op":"$eq","field":"first_name","value":"Jakarta"},{"op":"$eq","field":"first_name","value":"kalimantan Barat"},{"op":"$eq","field":"first_name","value":"sumatra Barat"}]}}`
+	op, err = mts.Query([]byte(operatorJSON), Rawmodels{})
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	orm, err := op.ToORM()
+	logs, err := op.ToORM()
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Rawmodel:", orm)
+	fmt.Println(logs)
 }
 
-func Mongomodel(repocfg repository.Repository) {
-	repoCfg := repo.NewRepo(&repo.RepoConfig{})
-	mts := parser.NewMongoModel(repoCfg)
-	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
+// func Rawmodel(repocfg repository.Repository) {
 
-	op, err := mts.Query(operatorJSON, Rawmodels{})
-	if err != nil {
-		fmt.Println(err)
-	}
+// 	// b.Log(orm)
+// }
 
-	orm, err := op.ToORM()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("Mongo Model:", orm)
-}
+// func Mongomodel(repocfg repository.Repository) {
+// 	repoCfg := repo.NewRepo(&repo.RepoConfig{})
+// 	mts := parser.NewMongoModel(repoCfg)
+// 	var operatorJSON string = `{"find":{"phone":{"$not":{"$gt":"25"}}}}`
+
+// 	op, err := mts.Query([]byte(operatorJSON), Rawmodels{})
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+
+// 	orm, err := op.ToORM()
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	fmt.Println("Mongo Model:", orm)
+// }
