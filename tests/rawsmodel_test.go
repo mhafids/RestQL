@@ -10,7 +10,7 @@ import (
 func TestRawModelQueryOne(t *testing.T) {
 	repoCfg := repo.NewRepo(repo.RepoConfig{})
 	mts := parser.NewRawModel(repoCfg)
-	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}}`
+	var operatorJSON string = `{"find":{"op":"$eq","field":"first_name","value":"Jawa Timur"}, "select":["by"]}`
 
 	op, err := mts.Query([]byte(operatorJSON), Rawmodels{})
 	if err != nil {

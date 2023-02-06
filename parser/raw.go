@@ -202,6 +202,7 @@ func (mdl *RawModel) query(datamodel rawmodelactions, model interface{}) (repo r
 		}
 	}
 
+	
 	if len(datamodel.Select) > 0 {
 		err = mdl.selects(datamodel, model)
 		if err != nil {
@@ -355,7 +356,7 @@ func (mdl *RawModel) selects(data rawmodelactions, model interface{}) (err error
 		return nil
 	}
 
-	err = selectcheck(data.Select, mdl)
+	err = selectcheck(data.Select, model)
 	if err != nil {
 		return
 	}
