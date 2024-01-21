@@ -7,8 +7,6 @@ type ICommand struct {
 
 type Insert struct {
 	Datas []ICommand `json:"datas"`
-
-	Select []string `json:"select"`
 }
 
 type Update struct {

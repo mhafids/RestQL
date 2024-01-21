@@ -1,38 +1,59 @@
 package repository
 
-type IORM struct {
-	Insert map[string]interface{}
-	Update map[string]interface{}
+type CommandSyntax string
 
-	SortBy string
-	Filter IFilterProcessed
-	Limit  int
-	Offset int
-	Select []string
+const (
+	// InsertSyntax statement is used for insert
+	InsertSyntax CommandSyntax = "insert"
+
+	// UpdateSyntax statement is used for update
+	UpdateSyntax CommandSyntax = "update"
+
+	// DeleteSyntax statement is used for delete
+	DeleteSyntax CommandSyntax = "delete"
+)
+
+type IORM struct {
+	Datas   map[string]interface{}
+	Command CommandSyntax
+
+	SortBy  string
+	Filter  IFilterProcessed
+	Limit   int
+	Offset  int
+	Select  []string
+	GroupBy string
 }
 
 type Repository interface {
+	Model(model interface{}) Repository
+
 	QueryRepository
 	CommandRepository
-
 	OutputRepository
+	FilteringRepository
 }
 
 type OutputRepository interface {
-	ToORM() (orm IORM, err error)
+	ToORM() (IORM, error)
 }
 
 // QueryRepository is Interface for QueryBatch
 type QueryRepository interface {
-	Filter(data IFilter, model interface{}) (err error)
-	Limit(data int) (err error)
-	Offset(data int) (err error)
-	SortBy(sorts []ISortBy, model interface{}) (err error)
-	Select(data []string, model interface{}) (err error)
+	Select(data []string) Repository
+}
+
+// FilteringRepository is interface for filter repository
+type FilteringRepository interface {
+	Filter(data IFilter) Repository
+	Limit(data int) Repository
+	Offset(data int) Repository
+	SortBy(sorts []ISortBy) Repository
+	GroupBy(data []string) Repository
 }
 
 type CommandRepository interface {
-	Insert(data Insert, model interface{}) (err error)
-	Update(data Update, model interface{}) (err error)
-	Delete(data Delete, model interface{}) (err error)
+	Insert(Datas []ICommand) Repository
+	Update(Datas []ICommand) Repository
+	Delete() Repository
 }

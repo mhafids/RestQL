@@ -217,9 +217,18 @@ sorting fields list separated by comma (",")
 Example:
 ```
 {
-  "sortby":"id asc, name asc"
+  "sortby":["id asc", "name asc"]
 }
 ```
+
+sort have function `field()` for sort manually with custom value
+Example:
+```
+{
+  "sortby":["field(userid, 1, 2) asc", "name asc"]
+}
+```
+API field : field(fieldname, ...value)
 
 ## 3. Limit
 
@@ -237,6 +246,7 @@ sort have 2 field alias : `skip`, and `offset`
   "offset":10
 }
 ```
+
 ## 5. Select
 select for specific field output if from sql use `map[string]interface{}`
 ```
@@ -244,3 +254,4 @@ select for specific field output if from sql use `map[string]interface{}`
   "selects":["name", "email"]
 }
 ```
+
