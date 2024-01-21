@@ -3,7 +3,7 @@ Query parser for `REST` to be easy building and connect with ORM.
 
 # Instalation
 ```
-go get -u github.com/mhafids/github.com/mhafids/RestQL
+go get -u github.com/mhafids/RestQL
 ```
 # Get Started
 ## Raw Parser
